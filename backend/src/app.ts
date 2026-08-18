@@ -5,7 +5,15 @@ import healthRouter from './routes/health.js'
 const app = express()
 
 // Global Middleware
-app.use(cors())
+const ALLOWED_ORIGIN = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:5173', 'http://localhost:5174']
+
+app.use(cors({
+  origin: ALLOWED_ORIGIN,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(express.json())
 
 // API Route Mounts

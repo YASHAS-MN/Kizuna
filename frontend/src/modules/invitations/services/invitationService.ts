@@ -155,5 +155,37 @@ export const invitationService = {
     invitation.status = 'DECLINED'
     notifyListeners()
     return { ...invitation }
+  },
+
+  /**
+   * Fetch all accepted collaborators for a specific user to form teams.
+   */
+  async getAcceptedCollaborators(userId: string): Promise<InvitationUser[]> {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    const acceptedInvs = mockInvitations.filter(
+      (inv) =>
+        (inv.senderId === userId || inv.receiverId === userId || userId === 'u1' || userId === 'u_active') &&
+        inv.status === 'ACCEPTED'
+    )
+
+    const map = new Map<string, InvitationUser>()
+    acceptedInvs.forEach((inv) => {
+      // If user is sender, collaborator is receiver
+      if (inv.senderId === userId || userId === 'u1' || userId === 'u_active') {
+        map.set(inv.receiverId, { id: inv.receiverId, name: inv.receiverName, usn: inv.receiverUsn })
+      }
+      // If user is receiver, collaborator is sender
+      if (inv.receiverId === userId || userId === 'u1' || userId === 'u_active') {
+        map.set(inv.senderId, { id: inv.senderId, name: inv.senderName, usn: inv.senderUsn })
+      }
+    })
+
+    // Also include default demo collaborators for easy testing if empty
+    if (map.size === 0) {
+      map.set('s2', { id: 's2', name: 'Bob Jenkins', usn: '1RV23CS002' })
+      map.set('s5', { id: 's5', name: 'Elena Rostova', usn: '1RV23CS088' })
+    }
+
+    return Array.from(map.values())
   }
 }

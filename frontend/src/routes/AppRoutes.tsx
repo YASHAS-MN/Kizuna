@@ -3,7 +3,9 @@ import AppLayout from '../layouts/AppLayout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import ProjectsPage from '../pages/ProjectsPage'
-import TeamsPage from '../pages/TeamsPage'
+import TeamsPage from '../modules/teams/pages/TeamsPage'
+import CreateTeamPage from '../modules/teams/pages/CreateTeamPage'
+import TeamWorkspacePage from '../modules/teams/pages/TeamWorkspacePage'
 import MentorsPage from '../pages/MentorsPage'
 import SubmissionsPage from '../pages/SubmissionsPage'
 import LoginPage from '../pages/LoginPage'
@@ -41,7 +43,12 @@ export default function AppRoutes() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
+        
+        {/* Team Formation Routes */}
         <Route path="/teams" element={<TeamsPage />} />
+        <Route path="/teams/create" element={<CreateTeamPage />} />
+        <Route path="/teams/:teamId" element={<TeamWorkspacePage />} />
+
         <Route path="/mentors" element={<MentorsPage />} />
         <Route path="/submissions" element={<SubmissionsPage />} />
       </Route>

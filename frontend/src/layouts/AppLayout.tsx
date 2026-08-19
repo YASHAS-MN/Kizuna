@@ -25,6 +25,12 @@ export default function AppLayout() {
         </div>
         <nav className="nav-links">
           <NavLink
+            to="/home"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            Home
+          </NavLink>
+          <NavLink
             to="/dashboard"
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >

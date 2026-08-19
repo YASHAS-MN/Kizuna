@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -98,7 +98,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+        <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Don't have an account?{' '}
+          <Link to="/register" style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+            Register here
+          </Link>
+        </p>
+
+        <div style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
           <p style={{ fontWeight: 600 }}>Demo Credentials (password: <code>kizuna123</code>):</p>
           <p style={{ marginTop: '0.25rem' }}>Student: <code>alice@kizuna.edu</code></p>
           <p>Mentor: <code>sarah.jenkins@kizuna.edu</code></p>

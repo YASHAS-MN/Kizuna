@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
+import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
 import ProjectsPage from '../pages/ProjectsPage'
 import TeamsPage from '../pages/TeamsPage'
 import MentorsPage from '../pages/MentorsPage'
 import SubmissionsPage from '../pages/SubmissionsPage'
 import LoginPage from '../pages/LoginPage'
+import RegisterPage from '../modules/auth/pages/RegisterPage'
 import { useAuth } from '../context/AuthContext'
 
 function ProtectedLayout() {
@@ -29,12 +31,14 @@ function ProtectedLayout() {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public Login Route */}
+      {/* Public Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
-      
+      <Route path="/register" element={<RegisterPage />} />
+
       {/* Protected Main Application Routes */}
       <Route element={<ProtectedLayout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/teams" element={<TeamsPage />} />

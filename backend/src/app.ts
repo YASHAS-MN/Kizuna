@@ -1,6 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import healthRouter from './routes/health.js'
+import usersRouter from './routes/users.routes.js'
+import teamsRouter from './routes/teams.routes.js'
+import projectsRouter from './routes/projects.routes.js'
 
 const app = express()
 
@@ -18,6 +21,9 @@ app.use(express.json())
 
 // API Route Mounts
 app.use('/api', healthRouter)
+app.use('/api', usersRouter)
+app.use('/api', teamsRouter)
+app.use('/api', projectsRouter)
 
 // Catch-all 404 Handler for unknown routes
 app.use((req: Request, res: Response) => {

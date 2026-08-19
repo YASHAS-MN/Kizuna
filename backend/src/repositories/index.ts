@@ -1,9 +1,9 @@
-import { InMemoryUserRepository } from './user.repository.js';
-import { InMemoryTeamRepository } from './team.repository.js';
-import { InMemoryProjectRepository } from './project.repository.js';
+import { SQLiteUserRepository } from './sqlite-user.repository.js';
+import { SQLiteTeamRepository } from './sqlite-team.repository.js';
+import { SQLiteProjectRepository } from './sqlite-project.repository.js';
 import { InMemorySessionRepository } from './session.repository.js';
 
-export const userRepository = new InMemoryUserRepository();
-export const teamRepository = new InMemoryTeamRepository();
-export const projectRepository = new InMemoryProjectRepository();
-export const sessionRepository = new InMemorySessionRepository();
+export const userRepository = new SQLiteUserRepository();
+export const teamRepository = new SQLiteTeamRepository();
+export const projectRepository = new SQLiteProjectRepository();
+export const sessionRepository = new InMemorySessionRepository(); // Remains in-memory as allowed by requirements

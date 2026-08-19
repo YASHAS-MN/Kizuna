@@ -1,5 +1,9 @@
 import 'dotenv/config'
 import app from './app.js'
+import { initDatabase } from './db/db.js'
+
+// Initialize SQLite database schema and seed data
+initDatabase()
 
 const PORT = process.env.PORT || 3000
 

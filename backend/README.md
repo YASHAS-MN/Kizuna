@@ -36,3 +36,20 @@ npm start
 
 ## Available Endpoints
 - `GET /api/health` — Checks API service status.
+- `GET /api/users` — List all development users.
+- `GET /api/teams` — List all development teams.
+- `GET /api/projects` — List all projects.
+- `GET /api/projects/:id` — Get details of a project by ID.
+
+## Database (SQLite)
+
+Kizuna uses the built-in Node.js SQLite relational database engine (`node:sqlite`) for local development.
+
+- **File Location**: `backend/data/kizuna.db` (auto-created on startup, ignored in `.gitignore`).
+- **Initialization**: The server automatically applies tables schema (`users`, `teams`, `team_members`, `projects`) and inserts initial seed data if the database is empty.
+- **Manual Reset**: To wipe and reset the development database, stop the server, delete the database file, and start the server again:
+  ```bash
+  rm backend/data/kizuna.db
+  npm run dev
+  ```
+

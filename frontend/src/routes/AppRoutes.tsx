@@ -2,7 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
-import ProjectsPage from '../pages/ProjectsPage'
+import ProjectsPage from '../modules/projects/pages/ProjectsPage'
+import CreateProjectPage from '../modules/projects/pages/CreateProjectPage'
+import ProjectWorkspacePage from '../modules/projects/pages/ProjectWorkspacePage'
 import TeamsPage from '../modules/teams/pages/TeamsPage'
 import CreateTeamPage from '../modules/teams/pages/CreateTeamPage'
 import TeamWorkspacePage from '../modules/teams/pages/TeamWorkspacePage'
@@ -42,7 +44,11 @@ export default function AppRoutes() {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        
+        {/* Project Routes */}
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/create" element={<CreateProjectPage />} />
+        <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
         
         {/* Team Formation Routes */}
         <Route path="/teams" element={<TeamsPage />} />

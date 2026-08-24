@@ -76,6 +76,10 @@ export function initDatabase() {
     insertUser.run('u7', 'Yashas Admin', 'admin@kizuna.edu', 'ADMIN', devPasswordHash);
     insertUser.run('u8', 'David Smith', 'david@kizuna.edu', 'STUDENT', devPasswordHash);
     insertUser.run('u9', 'Elena Rostova', 'elena@kizuna.edu', 'STUDENT', devPasswordHash);
+    
+    // Test helper account: hi / 123
+    const hiPasswordHash = '1de56606996311534225d532540b30e9:ffc5bfc0ae4e34bab8f265061e6a92238cfaa1fd3f4968d7059461e4ef301d280951c958ab7e0eedae19f70e0b7093998b9539f1599bef1b518b59cf61b9b90c';
+    insertUser.run('u10', 'hi', 'hi@kizuna.edu', 'STUDENT', hiPasswordHash);
 
     // Seed Teams
     const insertTeam = db.prepare('INSERT INTO teams (id, name, created_at) VALUES (?, ?, ?)');

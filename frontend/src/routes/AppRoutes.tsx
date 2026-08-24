@@ -5,6 +5,7 @@ import DashboardPage from '../pages/DashboardPage'
 import ProjectsPage from '../modules/projects/pages/ProjectsPage'
 import CreateProjectPage from '../modules/projects/pages/CreateProjectPage'
 import ProjectWorkspacePage from '../modules/projects/pages/ProjectWorkspacePage'
+import TasksPage from '../modules/tasks/pages/TasksPage'
 import TeamsPage from '../modules/teams/pages/TeamsPage'
 import CreateTeamPage from '../modules/teams/pages/CreateTeamPage'
 import TeamWorkspacePage from '../modules/teams/pages/TeamWorkspacePage'
@@ -45,10 +46,11 @@ export default function AppRoutes() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         
-        {/* Project Routes */}
+        {/* Project & Task Routes */}
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/create" element={<CreateProjectPage />} />
         <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
+        <Route path="/projects/:projectId/tasks" element={<TasksPage />} />
         
         {/* Team Formation Routes */}
         <Route path="/teams" element={<TeamsPage />} />

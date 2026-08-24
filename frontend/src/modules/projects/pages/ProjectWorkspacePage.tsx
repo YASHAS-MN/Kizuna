@@ -4,6 +4,7 @@ import type { Project } from '../types/project.types'
 import { projectService } from '../services/projectService'
 import { teamService } from '../../teams/services/teamService'
 import ProjectOverview from '../components/ProjectOverview'
+import TasksPage from '../../tasks/pages/TasksPage'
 
 type TabType = 'overview' | 'tasks' | 'activity' | 'progress' | 'submissions'
 
@@ -158,19 +159,7 @@ export default function ProjectWorkspacePage() {
       <div>
         {activeTab === 'overview' && <ProjectOverview project={project} />}
 
-        {activeTab === 'tasks' && (
-          <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>
-            <div className="module-icon-wrapper" style={{ margin: '0 auto 1rem auto', width: '3rem', height: '3rem', fontSize: '1.5rem' }}>
-              📋
-            </div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Tasks & Kanban Board Placeholder
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto' }}>
-              Task decomposition, assignment, and Kanban workflow management will be enabled in the upcoming task module.
-            </p>
-          </div>
-        )}
+        {activeTab === 'tasks' && <TasksPage />}
 
         {activeTab === 'activity' && (
           <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>

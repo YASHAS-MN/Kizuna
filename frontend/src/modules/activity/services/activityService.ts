@@ -170,6 +170,7 @@ export function emitActivity(event: ActivityEmission): ActivityEvent {
     message: event.message,
     createdAt: event.createdAt || new Date().toISOString(),
     taskId: event.taskId,
+    submissionId: event.submissionId,
     metadata: event.metadata
   }
 

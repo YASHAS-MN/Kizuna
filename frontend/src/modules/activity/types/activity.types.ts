@@ -11,6 +11,9 @@ export type ActivityEventType =
   | 'TEAM_MEMBER_ROLE_CHANGED'
   | 'COMMENT_ADDED'
   | 'COMMENT_DELETED'
+  | 'SUBMISSION_CREATED'
+  | 'SUBMISSION_UPDATED'
+  | 'SUBMISSION_SUBMITTED'
 
 export interface ActivityActor {
   id: string
@@ -26,6 +29,7 @@ export interface ActivityEvent {
   message: string
   createdAt: string
   taskId?: string
+  submissionId?: string
   metadata?: Record<string, string>
 }
 

@@ -6,6 +6,8 @@ import { teamService } from '../../teams/services/teamService'
 import ProjectOverview from '../components/ProjectOverview'
 import TasksPage from '../../tasks/pages/TasksPage'
 import ActivityPage from '../../activity/pages/ActivityPage'
+import ProgressPage from '../../progress/pages/ProgressPage'
+import SubmissionsPage from '../../submissions/pages/SubmissionsPage'
 
 type TabType = 'overview' | 'tasks' | 'activity' | 'progress' | 'submissions'
 
@@ -183,33 +185,9 @@ export default function ProjectWorkspacePage() {
 
         {activeTab === 'activity' && <ActivityPage projectId={project.id} />}
 
-        {activeTab === 'progress' && (
-          <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>
-            <div className="module-icon-wrapper" style={{ margin: '0 auto 1rem auto', width: '3rem', height: '3rem', fontSize: '1.5rem' }}>
-              📊
-            </div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Progress & Milestone Analytics Placeholder
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto' }}>
-              Milestone completion velocity, chart metrics, and progress tracking will be enabled in a future slice.
-            </p>
-          </div>
-        )}
+        {activeTab === 'progress' && <ProgressPage projectId={project.id} />}
 
-        {activeTab === 'submissions' && (
-          <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>
-            <div className="module-icon-wrapper" style={{ margin: '0 auto 1rem auto', width: '3rem', height: '3rem', fontSize: '1.5rem' }}>
-              📤
-            </div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Submissions & Deliverables Placeholder
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto' }}>
-              Artifact uploads, code repository links, and faculty review submissions will be managed here.
-            </p>
-          </div>
-        )}
+        {activeTab === 'submissions' && <SubmissionsPage projectId={project.id} />}
       </div>
     </div>
   )

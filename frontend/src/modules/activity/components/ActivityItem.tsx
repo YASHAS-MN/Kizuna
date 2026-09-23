@@ -30,6 +30,10 @@ function typeLabel(type: ActivityEvent['type']): string {
     case 'COMMENT_ADDED':
     case 'COMMENT_DELETED':
       return 'Comment'
+    case 'SUBMISSION_CREATED':
+    case 'SUBMISSION_UPDATED':
+    case 'SUBMISSION_SUBMITTED':
+      return 'Submission'
     default:
       return 'Event'
   }
@@ -85,6 +89,7 @@ export default function ActivityItem({ event }: ActivityItemProps) {
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.35rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
           <span>{formatTime(event.createdAt)}</span>
           {event.taskId && <span>Task {event.taskId}</span>}
+          {event.submissionId && <span>Deliverable {event.submissionId}</span>}
         </div>
       </div>
     </div>

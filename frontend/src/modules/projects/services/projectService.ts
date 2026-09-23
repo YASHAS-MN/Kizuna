@@ -15,7 +15,8 @@ let mockProjects: Project[] = [
     status: 'ACTIVE',
     teamId: 't1',
     createdAt: '2026-08-10T00:00:00.000Z',
-    mentorInfo: 'Dr. Sarah Jenkins'
+    mentorInfo: 'Dr. Sarah Jenkins',
+    mentorId: 'u4'
   },
   {
     id: 'p2',
@@ -24,7 +25,8 @@ let mockProjects: Project[] = [
     status: 'PLANNING',
     teamId: 't2',
     createdAt: '2026-08-12T00:00:00.000Z',
-    mentorInfo: 'Prof. Alan Vance'
+    mentorInfo: 'Prof. Alan Vance',
+    mentorId: 'u5'
   }
 ]
 
@@ -138,6 +140,14 @@ export const projectService = {
       console.error('Failed to resolve user teams for projects:', err)
       return mockProjects.map((p) => ({ ...p }))
     }
+  },
+
+  /**
+   * Get all projects assigned to a specific mentor by mentorId.
+   */
+  async getProjectsForMentor(mentorId: string): Promise<Project[]> {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    return mockProjects.filter((p) => p.mentorId === mentorId).map((p) => ({ ...p }))
   },
 
   /**

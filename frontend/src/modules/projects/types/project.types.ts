@@ -8,4 +8,5 @@ export interface Project {
   teamId: string
   createdAt: string
   mentorInfo?: string
+  mentorId?: string
 }

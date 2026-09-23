@@ -11,9 +11,9 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // If session verification finds a logged-in user, redirect to /dashboard
+    // If session verification finds a logged-in user, redirect based on role
     if (user) {
-      navigate('/dashboard', { replace: true })
+      navigate(user.role === 'MENTOR' ? '/mentor' : '/dashboard', { replace: true })
     }
   }, [user, navigate])
 
@@ -28,7 +28,8 @@ export default function LoginPage() {
     setFormLoading(true)
     try {
       await login(email, password)
-      navigate('/dashboard', { replace: true })
+      // The user state update from login() triggers the useEffect above,
+      // which performs the role-aware redirect (MENTOR → /mentor, others → /dashboard).
     } catch (err: any) {
       setErrorMsg(err.message || 'Invalid email or password.')
     } finally {

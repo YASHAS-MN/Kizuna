@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import HomePage from '../pages/HomePage'
 import DashboardPage from '../pages/DashboardPage'
@@ -13,6 +13,9 @@ import MentorsPage from '../pages/MentorsPage'
 import SubmissionsPage from '../pages/SubmissionsPage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../modules/auth/pages/RegisterPage'
+import MentorDashboardPage from '../modules/mentor/pages/MentorDashboardPage'
+import MentorTeamsPage from '../modules/mentor/pages/MentorTeamsPage'
+import MentorTeamPage from '../modules/mentor/pages/MentorTeamPage'
 import { useAuth } from '../context/AuthContext'
 
 function ProtectedLayout() {
@@ -31,6 +34,32 @@ function ProtectedLayout() {
   }
 
   return <AppLayout />
+}
+
+/**
+ * UI-level role gate for the Mentor Portal.
+ * Only users with role === "MENTOR" can access /mentor/* routes.
+ * Students and other roles are redirected to /dashboard.
+ *
+ * NOTE: This is frontend application-role gating only.
+ * Backend authorization will be enforced in a later implementation slice.
+ */
+function MentorProtectedLayout() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
+        <p style={{ color: 'var(--text-muted)' }}>Verifying access...</p>
+      </div>
+    )
+  }
+
+  if (!user || user.role !== 'MENTOR') {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  return <Outlet />
 }
 
 export default function AppRoutes() {
@@ -60,6 +89,13 @@ export default function AppRoutes() {
 
         <Route path="/mentors" element={<MentorsPage />} />
         <Route path="/submissions" element={<SubmissionsPage />} />
+
+        {/* Mentor Portal Routes — UI-level role gate: MENTOR only */}
+        <Route element={<MentorProtectedLayout />}>
+          <Route path="/mentor" element={<MentorDashboardPage />} />
+          <Route path="/mentor/teams" element={<MentorTeamsPage />} />
+          <Route path="/mentor/teams/:teamId" element={<MentorTeamPage />} />
+        </Route>
       </Route>
 
       {/* Wildcard redirect back to root */}

@@ -15,7 +15,8 @@ let mockTeams: Team[] = [
       { userId: 's3', name: 'Charlie Kim', usn: '1RV23IS015', role: 'MEMBER' }
     ],
     projectPlaceholder: 'Kizuna Platform Foundation',
-    mentorPlaceholder: 'Dr. Sarah Jenkins'
+    mentorPlaceholder: 'Dr. Sarah Jenkins',
+    mentorId: 'u4'
   },
   {
     id: 't2',
@@ -27,7 +28,8 @@ let mockTeams: Team[] = [
       { userId: 's5', name: 'Elena Rostova', usn: '1RV23CS088', role: 'MEMBER' }
     ],
     projectPlaceholder: 'AI-Powered Resume Analyzer',
-    mentorPlaceholder: 'Prof. Alan Vance'
+    mentorPlaceholder: 'Prof. Alan Vance',
+    mentorId: 'u5'
   }
 ]
 
@@ -130,6 +132,15 @@ export const teamService = {
     const teams = mockTeams.filter(
       (t) => t.members.some((m) => m.userId === userId) || userId === 'u1' || userId === 'u_active'
     )
+    return JSON.parse(JSON.stringify(teams))
+  },
+
+  /**
+   * Fetch all teams assigned to a specific mentor by mentorId.
+   */
+  async getTeamsForMentor(mentorId: string): Promise<Team[]> {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    const teams = mockTeams.filter((t) => t.mentorId === mentorId)
     return JSON.parse(JSON.stringify(teams))
   },
 

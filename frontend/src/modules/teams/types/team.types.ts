@@ -15,4 +15,5 @@ export interface Team {
   members: TeamMember[]
   projectPlaceholder?: string
   mentorPlaceholder?: string
+  mentorId?: string
 }

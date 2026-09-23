@@ -24,42 +24,55 @@ export default function AppLayout() {
           <span className="nav-badge">v0.3</span>
         </div>
         <nav className="nav-links">
-          <NavLink
-            to="/home"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Home
-          </NavLink>
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Dashboard
-          </NavLink>
-          <NavLink
-            to="/projects"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Projects
-          </NavLink>
-          <NavLink
-            to="/teams"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Teams
-          </NavLink>
-          <NavLink
-            to="/mentors"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Mentors
-          </NavLink>
-          <NavLink
-            to="/submissions"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            Submissions
-          </NavLink>
+          {user?.role === 'MENTOR' ? (
+            /* Mentor Portal navigation */
+            <NavLink
+              to="/mentor"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              Mentor Portal
+            </NavLink>
+          ) : (
+            /* Student navigation */
+            <>
+              <NavLink
+                to="/home"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Home
+              </NavLink>
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Dashboard
+              </NavLink>
+              <NavLink
+                to="/projects"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Projects
+              </NavLink>
+              <NavLink
+                to="/teams"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Teams
+              </NavLink>
+              <NavLink
+                to="/mentors"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Mentors
+              </NavLink>
+              <NavLink
+                to="/submissions"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                Submissions
+              </NavLink>
+            </>
+          )}
         </nav>
         
         {/* User Identity & Logout Action */}

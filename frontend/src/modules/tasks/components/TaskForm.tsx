@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { TaskStatus, TaskPriority } from '../types/task.types'
 import type { TeamMember } from '../../teams/types/team.types'
 import { taskService } from '../services/taskService'
+import { useAuth } from '../../../context/AuthContext'
 
 interface TaskFormProps {
   projectId: string
@@ -11,6 +12,7 @@ interface TaskFormProps {
 }
 
 export default function TaskForm({ projectId, teamMembers, onClose, onSuccess }: TaskFormProps) {
+  const { user } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [module, setModule] = useState('Frontend')
@@ -60,7 +62,8 @@ export default function TaskForm({ projectId, teamMembers, onClose, onSuccess }:
         assigneeName: selectedAssignee.name,
         priority,
         status,
-        dueDate: dueDate || undefined
+        dueDate: dueDate || undefined,
+        actor: user ? { id: user.id, name: user.name } : undefined
       })
 
       onSuccess()

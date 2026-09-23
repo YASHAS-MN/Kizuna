@@ -67,7 +67,8 @@ export default function CreateProjectPage() {
       const created = await projectService.createProject({
         name: projectName,
         description,
-        teamId: selectedTeamId
+        teamId: selectedTeamId,
+        actor: user ? { id: user.id, name: user.name } : undefined
       })
 
       // Redirect to newly created project workspace

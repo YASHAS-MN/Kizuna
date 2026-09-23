@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { Task, TaskStatus, TaskPriority } from '../types/task.types'
 import type { TeamMember } from '../../teams/types/team.types'
 import { taskService } from '../services/taskService'
+import { useAuth } from '../../../context/AuthContext'
+import CommentList from '../../comments/components/CommentList'
 
 interface TaskDetailModalProps {
   task: Task | null
@@ -11,22 +13,25 @@ interface TaskDetailModalProps {
 }
 
 export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpdated }: TaskDetailModalProps) {
-  if (!task) return null
-
-  const [status, setStatus] = useState<TaskStatus>(task.status)
-  const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [assigneeId, setAssigneeId] = useState<string>(task.assigneeId)
+  const { user } = useAuth()
+  const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'TODO')
+  const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? 'MEDIUM')
+  const [assigneeId, setAssigneeId] = useState<string>(task?.assigneeId ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  if (!task) return null
+
+  const actor = user ? { id: user.id, name: user.name } : undefined
 
   const handleStatusChange = async (newStatus: TaskStatus) => {
     setStatus(newStatus)
     setSaving(true)
     setErrorMsg('')
     try {
-      await taskService.updateTaskStatus(task.id, newStatus)
+      await taskService.updateTaskStatus(task.id, newStatus, actor)
       onTaskUpdated()
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update status.')
@@ -40,7 +45,7 @@ export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpda
     setSaving(true)
     setErrorMsg('')
     try {
-      await taskService.updateTask(task.id, { priority: newPriority })
+      await taskService.updateTask(task.id, { priority: newPriority }, actor)
       onTaskUpdated()
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update priority.')
@@ -57,7 +62,7 @@ export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpda
     setSaving(true)
     setErrorMsg('')
     try {
-      await taskService.assignTask(task.id, member.userId, member.name)
+      await taskService.assignTask(task.id, member.userId, member.name, actor)
       onTaskUpdated()
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to reassign member.')
@@ -70,7 +75,7 @@ export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpda
     setSaving(true)
     setErrorMsg('')
     try {
-      await taskService.deleteTask(task.id)
+      await taskService.deleteTask(task.id, actor)
       onTaskUpdated()
       onClose()
     } catch (err: any) {
@@ -96,7 +101,7 @@ export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpda
     >
       <div
         style={{
-          maxWidth: '560px',
+          maxWidth: '640px',
           width: '100%',
           backgroundColor: 'var(--bg-secondary)',
           border: '1px solid var(--border-color)',
@@ -201,6 +206,17 @@ export default function TaskDetailModal({ task, teamMembers, onClose, onTaskUpda
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Comments */}
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            paddingTop: '1.25rem',
+            borderTop: '1px solid var(--border-color)'
+          }}
+        >
+          <CommentList taskId={task.id} />
         </div>
 
         {/* Delete Confirmation or Actions Footer */}

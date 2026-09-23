@@ -149,6 +149,7 @@ export default function TasksPage() {
       {/* Task Detail & Actions Modal */}
       {selectedTask && (
         <TaskDetailModal
+          key={selectedTask.id}
           task={selectedTask}
           teamMembers={teamMembers}
           onClose={() => setSelectedTask(null)}

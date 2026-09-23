@@ -1,23 +1,35 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import type { Project } from '../types/project.types'
 import { projectService } from '../services/projectService'
 import { teamService } from '../../teams/services/teamService'
 import ProjectOverview from '../components/ProjectOverview'
 import TasksPage from '../../tasks/pages/TasksPage'
+import ActivityPage from '../../activity/pages/ActivityPage'
 
 type TabType = 'overview' | 'tasks' | 'activity' | 'progress' | 'submissions'
 
 export default function ProjectWorkspacePage() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [project, setProject] = useState<Project | null>(null)
   const [teamName, setTeamName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [activeTab, setActiveTab] = useState<TabType>(
+    location.pathname.endsWith('/activity') ? 'activity' : 'overview'
+  )
+
+  useEffect(() => {
+    if (location.pathname.endsWith('/activity')) {
+      setActiveTab('activity')
+    } else if (activeTab === 'activity') {
+      setActiveTab('overview')
+    }
+  }, [location.pathname, activeTab])
 
   const loadProject = useCallback(async () => {
     if (!projectId) return
@@ -135,7 +147,15 @@ export default function ProjectWorkspacePage() {
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab)
+                if (!projectId) return
+                if (tab === 'activity') {
+                  navigate(`/projects/${projectId}/activity`)
+                } else if (location.pathname.endsWith('/activity')) {
+                  navigate(`/projects/${projectId}`)
+                }
+              }}
               style={{
                 padding: '0.625rem 1.25rem',
                 backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
@@ -161,19 +181,7 @@ export default function ProjectWorkspacePage() {
 
         {activeTab === 'tasks' && <TasksPage />}
 
-        {activeTab === 'activity' && (
-          <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>
-            <div className="module-icon-wrapper" style={{ margin: '0 auto 1rem auto', width: '3rem', height: '3rem', fontSize: '1.5rem' }}>
-              ⚡
-            </div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Project Activity Feed Placeholder
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto' }}>
-              Real-time project updates, GitHub commit feeds, and collaborator activity logs will be rendered here.
-            </p>
-          </div>
-        )}
+        {activeTab === 'activity' && <ActivityPage projectId={project.id} />}
 
         {activeTab === 'progress' && (
           <div className="module-card" style={{ cursor: 'default', textAlign: 'center', padding: '3.5rem 2rem' }}>

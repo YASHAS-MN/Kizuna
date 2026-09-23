@@ -1,5 +1,7 @@
 import type { Project } from '../types/project.types'
+import type { ActivityActor } from '../../activity/types/activity.types'
 import { teamService } from '../../teams/services/teamService'
+import { emitActivity } from '../../activity/services/activityService'
 
 /**
  * In-memory mock database for projects during frontend prototyping.
@@ -53,7 +55,12 @@ export const projectService = {
   /**
    * Create a new project for a team.
    */
-  async createProject(data: { name: string; description: string; teamId: string }): Promise<Project> {
+  async createProject(data: {
+    name: string
+    description: string
+    teamId: string
+    actor?: ActivityActor
+  }): Promise<Project> {
     await new Promise((resolve) => setTimeout(resolve, 300))
 
     const cleanName = data.name.trim()
@@ -88,6 +95,13 @@ export const projectService = {
     }
 
     mockProjects.unshift(newProject)
+    emitActivity({
+      projectId: newProject.id,
+      actorId: data.actor?.id || 'system',
+      actorName: data.actor?.name || 'System',
+      type: 'PROJECT_CREATED',
+      message: `created project "${newProject.name}"`
+    })
     notifyListeners()
     return { ...newProject }
   },

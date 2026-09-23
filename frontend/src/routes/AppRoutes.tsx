@@ -50,6 +50,7 @@ export default function AppRoutes() {
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/create" element={<CreateProjectPage />} />
         <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
+        <Route path="/projects/:projectId/activity" element={<ProjectWorkspacePage />} />
         <Route path="/projects/:projectId/tasks" element={<TasksPage />} />
         
         {/* Team Formation Routes */}

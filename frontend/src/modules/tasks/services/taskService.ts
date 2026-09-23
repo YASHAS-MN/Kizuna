@@ -1,6 +1,15 @@
 import type { Task, TaskStatus, TaskPriority } from '../types/task.types'
+import type { ActivityActor } from '../../activity/types/activity.types'
 import { projectService } from '../../projects/services/projectService'
 import { teamService } from '../../teams/services/teamService'
+import { emitActivity } from '../../activity/services/activityService'
+
+function actorFields(actor?: ActivityActor) {
+  return {
+    actorId: actor?.id || 'system',
+    actorName: actor?.name || 'System'
+  }
+}
 
 /**
  * In-memory mock task repository for frontend prototype.
@@ -85,6 +94,7 @@ export const taskService = {
     priority: TaskPriority
     status?: TaskStatus
     dueDate?: string
+    actor?: ActivityActor
   }): Promise<Task> {
     await new Promise((resolve) => setTimeout(resolve, 250))
 
@@ -135,6 +145,13 @@ export const taskService = {
     }
 
     mockTasks.unshift(newTask)
+    emitActivity({
+      projectId: newTask.projectId,
+      ...actorFields(data.actor),
+      type: 'TASK_CREATED',
+      message: `created task "${newTask.title}"`,
+      taskId: newTask.id
+    })
     notifyListeners()
     return { ...newTask }
   },
@@ -159,13 +176,25 @@ export const taskService = {
   /**
    * Update task status (Kanban column move).
    */
-  async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
+  async updateTaskStatus(taskId: string, status: TaskStatus, actor?: ActivityActor): Promise<Task> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const task = mockTasks.find((t) => t.id === taskId)
     if (!task) {
       throw new Error('Task not found.')
     }
+    const previousStatus = task.status
+    if (previousStatus === status) {
+      return { ...task }
+    }
     task.status = status
+    emitActivity({
+      projectId: task.projectId,
+      ...actorFields(actor),
+      type: 'TASK_STATUS_CHANGED',
+      message: `moved "${task.title}" from ${previousStatus} → ${status}`,
+      taskId: task.id,
+      metadata: { from: previousStatus, to: status }
+    })
     notifyListeners()
     return { ...task }
   },
@@ -173,7 +202,12 @@ export const taskService = {
   /**
    * Reassign task to a different team member.
    */
-  async assignTask(taskId: string, assigneeId: string, assigneeName: string): Promise<Task> {
+  async assignTask(
+    taskId: string,
+    assigneeId: string,
+    assigneeName: string,
+    actor?: ActivityActor
+  ): Promise<Task> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const task = mockTasks.find((t) => t.id === taskId)
     if (!task) {
@@ -189,8 +223,28 @@ export const taskService = {
       }
     }
 
+    const previousAssigneeId = task.assigneeId
+    const previousAssigneeName = task.assigneeName
+    if (previousAssigneeId === assigneeId) {
+      return { ...task }
+    }
+
+    const isReassignment = Boolean(previousAssigneeId)
     task.assigneeId = assigneeId
     task.assigneeName = assigneeName
+    emitActivity({
+      projectId: task.projectId,
+      ...actorFields(actor),
+      type: isReassignment ? 'TASK_REASSIGNED' : 'TASK_ASSIGNED',
+      message: isReassignment
+        ? `reassigned "${task.title}" from ${previousAssigneeName} to ${assigneeName}`
+        : `assigned "${task.title}" to ${assigneeName}`,
+      taskId: task.id,
+      metadata: {
+        from: previousAssigneeName || '',
+        to: assigneeName
+      }
+    })
     notifyListeners()
     return { ...task }
   },
@@ -198,30 +252,51 @@ export const taskService = {
   /**
    * Update arbitrary fields of a task.
    */
-  async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+  async updateTask(taskId: string, updates: Partial<Task>, actor?: ActivityActor): Promise<Task> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const index = mockTasks.findIndex((t) => t.id === taskId)
     if (index === -1) {
       throw new Error('Task not found.')
     }
 
+    const previous = mockTasks[index]
     mockTasks[index] = {
-      ...mockTasks[index],
+      ...previous,
       ...updates
     }
 
+    const updated = mockTasks[index]
+    if (updates.priority && updates.priority !== previous.priority) {
+      emitActivity({
+        projectId: updated.projectId,
+        ...actorFields(actor),
+        type: 'TASK_PRIORITY_CHANGED',
+        message: `changed priority of "${updated.title}" from ${previous.priority} → ${updated.priority}`,
+        taskId: updated.id,
+        metadata: { from: previous.priority, to: updated.priority }
+      })
+    }
+
     notifyListeners()
-    return { ...mockTasks[index] }
+    return { ...updated }
   },
 
   /**
    * Delete a task.
    */
-  async deleteTask(taskId: string): Promise<boolean> {
+  async deleteTask(taskId: string, actor?: ActivityActor): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, 150))
+    const task = mockTasks.find((t) => t.id === taskId)
     const initialLength = mockTasks.length
     mockTasks = mockTasks.filter((t) => t.id !== taskId)
-    if (mockTasks.length !== initialLength) {
+    if (mockTasks.length !== initialLength && task) {
+      emitActivity({
+        projectId: task.projectId,
+        ...actorFields(actor),
+        type: 'TASK_DELETED',
+        message: `deleted task "${task.title}"`,
+        taskId: task.id
+      })
       notifyListeners()
       return true
     }

@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import type { Submission } from '../types/submission.types'
-
+import { reviewService } from '../../reviews/services/reviewService'
+import type { SubmissionReview } from '../../reviews/types/review.types'
 interface SubmissionCardProps {
   submission: Submission
   onEdit?: (submission: Submission) => void
@@ -41,6 +43,23 @@ export default function SubmissionCard({
   submitting = false
 }: SubmissionCardProps) {
   const isDraft = submission.status === 'DRAFT'
+  const isReviewedOrUnderReview = submission.status === 'UNDER_REVIEW' || submission.status === 'REVIEWED'
+
+  const [review, setReview] = useState<SubmissionReview | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (isReviewedOrUnderReview) {
+      reviewService.getReviewForSubmission(submission.id).then((rev) => {
+        if (active && rev) {
+          setReview(rev)
+        }
+      })
+    }
+    return () => {
+      active = false
+    }
+  }, [submission.id, isReviewedOrUnderReview])
 
   return (
     <div
@@ -143,6 +162,57 @@ export default function SubmissionCard({
       >
         {submission.description}
       </div>
+
+      {/* Review Section */}
+      {isReviewedOrUnderReview && (
+        <div
+          style={{
+            marginTop: '0.5rem',
+            padding: '1.25rem',
+            backgroundColor: submission.status === 'REVIEWED' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)',
+            border: `1px solid ${submission.status === 'REVIEWED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
+            borderRadius: '0.75rem'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Mentor Review
+            </h4>
+            {review && (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Reviewer: <strong style={{ color: 'var(--text-secondary)' }}>{review.reviewerName}</strong>
+              </span>
+            )}
+          </div>
+          
+          {submission.status === 'UNDER_REVIEW' && (
+            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              Your submission is currently being reviewed by your mentor. Feedback will appear here once the review is completed or updated.
+            </p>
+          )}
+
+          {review?.feedback && (
+            <div
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.5,
+                marginTop: submission.status === 'UNDER_REVIEW' ? '1rem' : 0
+              }}
+            >
+              <strong>Feedback:</strong>
+              <div style={{ marginTop: '0.5rem' }}>{review.feedback}</div>
+            </div>
+          )}
+          
+          {submission.status === 'REVIEWED' && !review?.feedback && (
+            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+              Mentor feedback is available.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Timestamp Footer */}
       <div

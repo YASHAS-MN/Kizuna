@@ -14,6 +14,9 @@ export type ActivityEventType =
   | 'SUBMISSION_CREATED'
   | 'SUBMISSION_UPDATED'
   | 'SUBMISSION_SUBMITTED'
+  | 'SUBMISSION_REVIEW_STARTED'
+  | 'SUBMISSION_FEEDBACK_UPDATED'
+  | 'SUBMISSION_REVIEWED'
 
 export interface ActivityActor {
   id: string

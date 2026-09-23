@@ -380,6 +380,16 @@ export default function MentorTeamPage() {
                       {progress.overall.todoTasks} pending
                     </p>
                   </div>
+                  
+                  <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                    <button
+                      onClick={() => navigate(`/mentor/projects/${project.id}/submissions`)}
+                      className="btn btn-secondary"
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      View Submissions →
+                    </button>
+                  </div>
                 </div>
               )
             })}

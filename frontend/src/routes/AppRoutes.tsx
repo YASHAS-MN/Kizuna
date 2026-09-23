@@ -16,6 +16,8 @@ import RegisterPage from '../modules/auth/pages/RegisterPage'
 import MentorDashboardPage from '../modules/mentor/pages/MentorDashboardPage'
 import MentorTeamsPage from '../modules/mentor/pages/MentorTeamsPage'
 import MentorTeamPage from '../modules/mentor/pages/MentorTeamPage'
+import MentorProjectSubmissionsPage from '../modules/mentor/pages/MentorProjectSubmissionsPage'
+import SubmissionReviewPage from '../modules/reviews/pages/SubmissionReviewPage'
 import { useAuth } from '../context/AuthContext'
 
 function ProtectedLayout() {
@@ -95,6 +97,8 @@ export default function AppRoutes() {
           <Route path="/mentor" element={<MentorDashboardPage />} />
           <Route path="/mentor/teams" element={<MentorTeamsPage />} />
           <Route path="/mentor/teams/:teamId" element={<MentorTeamPage />} />
+          <Route path="/mentor/projects/:projectId/submissions" element={<MentorProjectSubmissionsPage />} />
+          <Route path="/mentor/submissions/:submissionId/review" element={<SubmissionReviewPage />} />
         </Route>
       </Route>
 

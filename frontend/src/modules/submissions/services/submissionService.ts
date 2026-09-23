@@ -1,7 +1,8 @@
 import type {
   Submission,
   CreateSubmissionInput,
-  UpdateSubmissionInput
+  UpdateSubmissionInput,
+  SubmissionStatus
 } from '../types/submission.types'
 import { emitActivity } from '../../activity/services/activityService'
 
@@ -229,5 +230,31 @@ export const submissionService = {
 
     notifyListeners()
     return { ...submitted }
+  },
+
+  /**
+   * Update the status of a submission. Only for use by the reviewService.
+   */
+  async updateSubmissionStatus(
+    submissionId: string,
+    status: SubmissionStatus
+  ): Promise<Submission> {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    
+    const index = mockSubmissions.findIndex((s) => s.id === submissionId)
+    if (index === -1) {
+      throw new Error('Submission not found.')
+    }
+
+    const current = mockSubmissions[index]
+    const updated: Submission = {
+      ...current,
+      status,
+      updatedAt: new Date().toISOString()
+    }
+
+    mockSubmissions[index] = updated
+    notifyListeners()
+    return { ...updated }
   }
 }

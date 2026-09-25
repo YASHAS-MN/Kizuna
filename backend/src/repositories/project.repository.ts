@@ -5,7 +5,10 @@ import { User } from '../models/user.js';
 export interface ProjectRepository {
   findAll(): Promise<Project[]>;
   findAllForUser(user: User): Promise<Project[]>;
+  findAllForUser(user: User): Promise<Project[]>;
   findById(id: string): Promise<Project | null>;
+  createProject(project: Project): Promise<void>;
+  updateProject(id: string, updates: Partial<Project>): Promise<void>;
 }
 
 export class InMemoryProjectRepository implements ProjectRepository {
@@ -39,5 +42,16 @@ export class InMemoryProjectRepository implements ProjectRepository {
   async findById(id: string): Promise<Project | null> {
     const project = this.projects.find(p => p.id === id);
     return project ? { ...project } : null;
+  }
+
+  async createProject(project: Project): Promise<void> {
+    this.projects.push(project);
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<void> {
+    const index = this.projects.findIndex(p => p.id === id);
+    if (index !== -1) {
+      this.projects[index] = { ...this.projects[index], ...updates };
+    }
   }
 }

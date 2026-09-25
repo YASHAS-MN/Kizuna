@@ -1,38 +1,6 @@
-import type { Team, TeamMember, TeamRole } from '../types/team.types'
-import { authorizationService } from '../../authorization/services/authorizationService'
-import { fetchTeamsApi, fetchTeamByIdApi } from '../../../services/api/teams'
-/**
- * In-memory team dataset for frontend prototype testing.
- */
-let mockTeams: Team[] = [
-  {
-    id: 't1',
-    name: 'Team Alpha',
-    createdAt: '2026-08-01T00:00:00.000Z',
-    ownerId: 'u1',
-    members: [
-      { userId: 'u1', name: 'Alice Watson', usn: '1RV23CS000', role: 'TEAM_LEAD' },
-      { userId: 's2', name: 'Bob Jenkins', usn: '1RV23CS002', role: 'MEMBER' },
-      { userId: 's3', name: 'Charlie Kim', usn: '1RV23IS015', role: 'MEMBER' }
-    ],
-    projectPlaceholder: 'Kizuna Platform Foundation',
-    mentorPlaceholder: 'Dr. Sarah Jenkins',
-    mentorId: 'u4'
-  },
-  {
-    id: 't2',
-    name: 'Team Beta',
-    createdAt: '2026-08-05T00:00:00.000Z',
-    ownerId: 'u8',
-    members: [
-      { userId: 'u8', name: 'David Smith', usn: '1RV23EC042', role: 'TEAM_LEAD' },
-      { userId: 's5', name: 'Elena Rostova', usn: '1RV23CS088', role: 'MEMBER' }
-    ],
-    projectPlaceholder: 'AI-Powered Resume Analyzer',
-    mentorPlaceholder: 'Prof. Alan Vance',
-    mentorId: 'u5'
-  }
-]
+import type { Team, TeamRole } from '../types/team.types'
+import { fetchTeamsApi, fetchTeamByIdApi, createTeamApi, addMemberApi, updateMemberRoleApi, removeMemberApi } from '../../../services/api/teams'
+
 
 // Pub/sub listeners for reactive UI sync across team modules
 type Listener = () => void
@@ -66,55 +34,11 @@ export const teamService = {
     owner: { id: string; name: string; usn: string },
     memberUsers: { id: string; name: string; usn: string }[]
   ): Promise<Team> {
-    await new Promise((resolve) => setTimeout(resolve, 300))
-
-    const cleanName = name.trim()
-    if (!cleanName) {
-      throw new Error('Team name is required.')
-    }
-
-    // Validation: Duplicate team name check
-    const existing = mockTeams.find((t) => t.name.toLowerCase() === cleanName.toLowerCase())
-    if (existing) {
-      throw new Error(`A team named "${cleanName}" already exists. Please choose a different team name.`)
-    }
-
-    // Build member roster: Creator is TEAM_LEAD, collaborators are MEMBER
-    const members: TeamMember[] = [
-      {
-        userId: owner.id,
-        name: owner.name,
-        usn: owner.usn,
-        role: 'TEAM_LEAD'
-      }
-    ]
-
-    // Append invited collaborators (filtering duplicates)
-    for (const u of memberUsers) {
-      if (!members.some((m) => m.userId === u.id)) {
-        members.push({
-          userId: u.id,
-          name: u.name,
-          usn: u.usn,
-          role: 'MEMBER'
-        })
-      }
-    }
-
-    const newTeam: Team = {
-      id: `t_${Date.now()}`,
-      name: cleanName,
-      createdAt: new Date().toISOString(),
-      ownerId: owner.id,
-      members,
-      projectPlaceholder: 'Not assigned yet',
-      mentorPlaceholder: 'Not assigned yet'
-    }
-
-    mockTeams.unshift(newTeam)
+    const newTeam = await createTeamApi(name, owner, memberUsers)
     notifyListeners()
-    return { ...newTeam }
+    return newTeam
   },
+
 
   /**
    * Fetch details for a specific team by ID using the HTTP API.
@@ -152,68 +76,26 @@ export const teamService = {
     user: { id: string; name: string; usn: string },
     role: TeamRole = 'MEMBER'
   ): Promise<Team> {
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    const team = mockTeams.find((t) => t.id === teamId)
-    if (!team) {
-      throw new Error('Team not found.')
-    }
-
-    // AUTHORIZATION
-    authorizationService.assertCanModifyTeam(team)
-
-    if (team.members.some((m) => m.userId === user.id)) {
-      throw new Error('User is already a member of this team.')
-    }
-
-    team.members.push({
-      userId: user.id,
-      name: user.name,
-      usn: user.usn,
-      role
-    })
-
+    await addMemberApi(teamId, user, role)
     notifyListeners()
-    return JSON.parse(JSON.stringify(team))
+    return this.getTeam(teamId) as Promise<Team>
   },
 
   /**
    * Update a member's role within a team (between TEAM_LEAD and MEMBER).
    */
   async updateMemberRole(teamId: string, userId: string, newRole: TeamRole): Promise<Team> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const team = mockTeams.find((t) => t.id === teamId)
-    if (!team) {
-      throw new Error('Team not found.')
-    }
-
-    // AUTHORIZATION
-    authorizationService.assertCanModifyTeam(team)
-
-    const member = team.members.find((m) => m.userId === userId)
-    if (!member) {
-      throw new Error('Member not found in team.')
-    }
-
-    member.role = newRole
+    await updateMemberRoleApi(teamId, userId, newRole)
     notifyListeners()
-    return JSON.parse(JSON.stringify(team))
+    return this.getTeam(teamId) as Promise<Team>
   },
 
   /**
    * Remove a member from a team.
    */
   async removeMember(teamId: string, userId: string): Promise<Team> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const team = mockTeams.find((t) => t.id === teamId)
-    if (!team) {
-      throw new Error('Team not found.')
-    }
-
-    // AUTHORIZATION
-    authorizationService.assertCanModifyTeam(team)
-
-    team.members = team.members.filter((m) => m.userId !== userId)
+    await removeMemberApi(teamId, userId)
     notifyListeners()
-    return JSON.parse(JSON.stringify(team))
+    return this.getTeam(teamId) as Promise<Team>
   }
 }

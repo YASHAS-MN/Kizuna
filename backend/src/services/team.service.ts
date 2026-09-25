@@ -17,4 +17,20 @@ export class TeamService {
   async getTeamMembers(teamId: string): Promise<TeamMember[]> {
     return this.teamRepository.findMembersByTeamId(teamId);
   }
+
+  async createTeam(team: Team, members: TeamMember[]): Promise<void> {
+    return this.teamRepository.createTeam(team, members);
+  }
+
+  async addMember(teamId: string, member: TeamMember): Promise<void> {
+    return this.teamRepository.addMember(teamId, member);
+  }
+
+  async updateMemberRole(teamId: string, userId: string, role: string): Promise<void> {
+    return this.teamRepository.updateMemberRole(teamId, userId, role);
+  }
+
+  async removeMember(teamId: string, userId: string): Promise<void> {
+    return this.teamRepository.removeMember(teamId, userId);
+  }
 }

@@ -65,4 +65,38 @@ export class SQLiteTeamRepository implements TeamRepository {
       membershipRole: r.membership_role
     }));
   }
+
+  async createTeam(team: Team, members: TeamMember[]): Promise<void> {
+    const insertTeam = db.prepare('INSERT INTO teams (id, name, created_at, mentor_id) VALUES (?, ?, ?, ?)');
+    const insertMember = db.prepare('INSERT INTO team_members (team_id, user_id, membership_role) VALUES (?, ?, ?)');
+    
+    // SQLite doesn't have a simple async transaction API in node:sqlite natively without executing BEGIN/COMMIT manually
+    // For this prototype, we execute sequentially
+    db.exec('BEGIN TRANSACTION');
+    try {
+      insertTeam.run(team.id, team.name, team.createdAt.toISOString(), team.mentorId || null);
+      for (const m of members) {
+        insertMember.run(m.teamId, m.userId, m.membershipRole);
+      }
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
+  async addMember(teamId: string, member: TeamMember): Promise<void> {
+    const insertMember = db.prepare('INSERT INTO team_members (team_id, user_id, membership_role) VALUES (?, ?, ?)');
+    insertMember.run(member.teamId, member.userId, member.membershipRole);
+  }
+
+  async updateMemberRole(teamId: string, userId: string, role: string): Promise<void> {
+    const updateMember = db.prepare('UPDATE team_members SET membership_role = ? WHERE team_id = ? AND user_id = ?');
+    updateMember.run(role, teamId, userId);
+  }
+
+  async removeMember(teamId: string, userId: string): Promise<void> {
+    const deleteMember = db.prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?');
+    deleteMember.run(teamId, userId);
+  }
 }

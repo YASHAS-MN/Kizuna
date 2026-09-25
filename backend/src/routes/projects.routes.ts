@@ -13,5 +13,7 @@ const projectController = new ProjectController(projectService, authService);
 
 router.get('/projects', requireAuth, projectController.getAllProjects);
 router.get('/projects/:id', requireAuth, projectController.getProjectById);
+router.post('/projects', requireAuth, projectController.createProject);
+router.put('/projects/:id', requireAuth, projectController.updateProject);
 
 export default router;

@@ -91,6 +91,48 @@ server.listen(PORT, async () => {
     console.assert(res.status === 200, 'Alan should access t2');
     console.log('Alan GET /api/teams/t2 -> 200 OK');
 
+    console.log('\n--- Mutation Tests ---');
+    
+    // Mentor Sarah tries to update team (should fail)
+    res = await request('/api/teams/t1/members', 'POST', { user: { id: 'u3' }, role: 'MEMBER' }, sarahCookie);
+    console.assert(res.status === 403, 'Sarah should not be able to add member');
+    console.log('Sarah POST /api/teams/t1/members -> 403 OK');
+
+    // Student Alice updates her own team t1
+    res = await request('/api/teams/t1/members', 'POST', { user: { id: 'u9' }, role: 'MEMBER' }, aliceCookie);
+    console.assert(res.status === 200, 'Alice should be able to add member');
+    console.log('Alice POST /api/teams/t1/members -> 200 OK');
+
+    // Student Alice tries to update t2 (should fail)
+    res = await request('/api/projects/p2', 'PUT', { description: 'Hacked' }, aliceCookie);
+    console.assert(res.status === 403, 'Alice should not be able to update p2');
+    console.log('Alice PUT /api/projects/p2 -> 403 OK');
+
+    // Student Alice creates a new team
+    res = await request('/api/teams', 'POST', {
+      name: 'Alice New Team',
+      owner: { id: 'u1' },
+      members: []
+    }, aliceCookie);
+    console.assert(res.status === 201, 'Alice should be able to create team');
+    const newTeamId = res.data.id;
+    console.log('Alice POST /api/teams -> 201 OK, teamId:', newTeamId);
+
+    // Student Alice creates a new project under new team
+    res = await request('/api/projects', 'POST', {
+      name: 'Alice Project',
+      description: 'Desc',
+      teamId: newTeamId
+    }, aliceCookie);
+    console.assert(res.status === 201, 'Alice should be able to create project');
+    const newProjectId = res.data.id;
+    console.log('Alice POST /api/projects -> 201 OK, projectId:', newProjectId);
+
+    // Student Alice updates new project
+    res = await request(`/api/projects/${newProjectId}`, 'PUT', { status: 'ACTIVE' }, aliceCookie);
+    console.assert(res.status === 200, 'Alice should be able to update her project');
+    console.log(`Alice PUT /api/projects/${newProjectId} -> 200 OK`);
+
     console.log('\nAll tests passed!');
   } catch (err) {
     console.error('Test failed:', err);

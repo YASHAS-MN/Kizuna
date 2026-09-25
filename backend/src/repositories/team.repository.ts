@@ -7,6 +7,10 @@ export interface TeamRepository {
   findAllForUser(user: User): Promise<Team[]>;
   findById(id: string): Promise<Team | null>;
   findMembersByTeamId(teamId: string): Promise<TeamMember[]>;
+  createTeam(team: Team, members: TeamMember[]): Promise<void>;
+  addMember(teamId: string, member: TeamMember): Promise<void>;
+  updateMemberRole(teamId: string, userId: string, role: string): Promise<void>;
+  removeMember(teamId: string, userId: string): Promise<void>;
 }
 
 export class InMemoryTeamRepository implements TeamRepository {
@@ -44,5 +48,23 @@ export class InMemoryTeamRepository implements TeamRepository {
 
   async findMembersByTeamId(teamId: string): Promise<TeamMember[]> {
     return this.memberships.filter(m => m.teamId === teamId).map(m => ({ ...m }));
+  }
+
+  async createTeam(team: Team, members: TeamMember[]): Promise<void> {
+    this.teams.push(team);
+    this.memberships.push(...members);
+  }
+
+  async addMember(teamId: string, member: TeamMember): Promise<void> {
+    this.memberships.push(member);
+  }
+
+  async updateMemberRole(teamId: string, userId: string, role: string): Promise<void> {
+    const mem = this.memberships.find(m => m.teamId === teamId && m.userId === userId);
+    if (mem) mem.membershipRole = role;
+  }
+
+  async removeMember(teamId: string, userId: string): Promise<void> {
+    this.memberships = this.memberships.filter(m => !(m.teamId === teamId && m.userId === userId));
   }
 }

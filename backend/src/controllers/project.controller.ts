@@ -45,4 +45,58 @@ export class ProjectController {
       next(error);
     }
   };
+
+  createProject = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user!;
+      const data = req.body;
+      
+      const cleanName = data.name?.trim();
+      const cleanDesc = data.description?.trim();
+      
+      if (!cleanName || !cleanDesc || !data.teamId) {
+        return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+      }
+
+      // Check auth: user must be able to modify the team
+      if (!(await this.authService.canModifyTeam(user, data.teamId))) {
+        return res.status(403).json({ status: 'error', message: 'Forbidden' });
+      }
+
+      const newProject = {
+        id: `p_${Date.now()}`,
+        name: cleanName,
+        description: cleanDesc,
+        status: 'PLANNING' as any,
+        teamId: data.teamId,
+        createdAt: new Date(),
+      };
+
+      await this.projectService.createProject(newProject);
+      
+      const createdProject = await this.projectService.getProjectById(newProject.id);
+      res.status(201).json(createdProject);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProject = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const user = req.user!;
+      const updates = req.body;
+
+      if (!(await this.authService.canModifyProject(user, id))) {
+        return res.status(403).json({ status: 'error', message: 'Forbidden' });
+      }
+
+      await this.projectService.updateProject(id, updates);
+      
+      const updatedProject = await this.projectService.getProjectById(id);
+      res.status(200).json(updatedProject);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

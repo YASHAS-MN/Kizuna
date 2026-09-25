@@ -13,4 +13,12 @@ export class ProjectService {
   async getProjectById(id: string): Promise<Project | null> {
     return this.projectRepository.findById(id);
   }
+
+  async createProject(project: Project): Promise<void> {
+    return this.projectRepository.createProject(project);
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<void> {
+    return this.projectRepository.updateProject(id, updates);
+  }
 }

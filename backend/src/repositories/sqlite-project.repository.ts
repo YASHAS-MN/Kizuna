@@ -63,4 +63,42 @@ export class SQLiteProjectRepository implements ProjectRepository {
       createdAt: new Date(row.created_at)
     };
   }
+
+  async createProject(project: Project): Promise<void> {
+    const insertProject = db.prepare('INSERT INTO projects (id, name, description, status, team_id, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    insertProject.run(
+      project.id,
+      project.name,
+      project.description,
+      project.status,
+      project.teamId,
+      project.createdAt.toISOString()
+    );
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<void> {
+    // Dynamic update query
+    const setClause: string[] = [];
+    const values: any[] = [];
+    
+    if (updates.name !== undefined) {
+      setClause.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.description !== undefined) {
+      setClause.push('description = ?');
+      values.push(updates.description);
+    }
+    if (updates.status !== undefined) {
+      setClause.push('status = ?');
+      values.push(updates.status);
+    }
+    
+    if (setClause.length === 0) return;
+    
+    values.push(id);
+    const query = `UPDATE projects SET ${setClause.join(', ')} WHERE id = ?`;
+    const updateProjectStmt = db.prepare(query);
+    updateProjectStmt.run(...values);
+  }
 }

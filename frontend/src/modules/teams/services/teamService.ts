@@ -1,5 +1,6 @@
 import type { Team, TeamMember, TeamRole } from '../types/team.types'
 import { authorizationService } from '../../authorization/services/authorizationService'
+import { fetchTeamsApi, fetchTeamByIdApi } from '../../../services/api/teams'
 /**
  * In-memory team dataset for frontend prototype testing.
  */
@@ -116,37 +117,31 @@ export const teamService = {
   },
 
   /**
-   * Fetch details for a specific team by ID.
+   * Fetch details for a specific team by ID using the HTTP API.
    */
   async getTeam(teamId: string): Promise<Team | null> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const team = mockTeams.find((t) => t.id === teamId)
-    if (!team) return null
-
-    // AUTHORIZATION
-    authorizationService.assertCanAccessTeam(team)
-
-    return JSON.parse(JSON.stringify(team))
+    try {
+      return await fetchTeamByIdApi(teamId)
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        return null
+      }
+      throw err
+    }
   },
 
   /**
    * Fetch all teams associated with a specific user.
    */
-  async getTeamsForUser(userId: string): Promise<Team[]> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const teams = mockTeams.filter(
-      (t) => t.members.some((m) => m.userId === userId)
-    )
-    return JSON.parse(JSON.stringify(teams))
+  async getTeamsForUser(_userId: string): Promise<Team[]> {
+    return fetchTeamsApi()
   },
 
   /**
-   * Fetch all teams assigned to a specific mentor by mentorId.
+   * Fetch all teams assigned to a specific mentor.
    */
-  async getTeamsForMentor(mentorId: string): Promise<Team[]> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const teams = mockTeams.filter((t) => t.mentorId === mentorId)
-    return JSON.parse(JSON.stringify(teams))
+  async getTeamsForMentor(_mentorId: string): Promise<Team[]> {
+    return fetchTeamsApi()
   },
 
   /**

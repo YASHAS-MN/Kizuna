@@ -1,7 +1,10 @@
 import { Project } from '../models/project.js';
 
+import { User } from '../models/user.js';
+
 export interface ProjectRepository {
   findAll(): Promise<Project[]>;
+  findAllForUser(user: User): Promise<Project[]>;
   findById(id: string): Promise<Project | null>;
 }
 
@@ -27,6 +30,10 @@ export class InMemoryProjectRepository implements ProjectRepository {
 
   async findAll(): Promise<Project[]> {
     return [...this.projects];
+  }
+
+  async findAllForUser(user: User): Promise<Project[]> {
+    return [...this.projects]; // Naive fallback for in-memory
   }
 
   async findById(id: string): Promise<Project | null> {

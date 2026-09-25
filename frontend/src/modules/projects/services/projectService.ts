@@ -3,6 +3,7 @@ import type { ActivityActor } from '../../activity/types/activity.types'
 import { teamService } from '../../teams/services/teamService'
 import { emitActivity } from '../../activity/services/activityService'
 import { authorizationService } from '../../authorization/services/authorizationService'
+import { fetchProjectsApi, fetchProjectByIdApi } from '../../../services/api/projects'
 
 /**
  * In-memory mock database for projects during frontend prototyping.
@@ -115,50 +116,41 @@ export const projectService = {
   },
 
   /**
-   * Get project details by ID.
+   * Get project details by ID using HTTP API.
    */
   async getProject(projectId: string): Promise<Project | null> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    const project = mockProjects.find((p) => p.id === projectId)
-    if (!project) return null
-
-    // AUTHORIZATION
-    const team = await teamService.getTeam(project.teamId) // Throws if team is inaccessible
-    if (!team) throw new Error('Project team not found')
-    authorizationService.assertCanAccessProject(project, team)
-
-    return { ...project }
+    try {
+      return await fetchProjectByIdApi(projectId)
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('not found')) {
+        return null
+      }
+      throw err
+    }
   },
 
   /**
    * Get all projects belonging to a specific team.
    */
   async getProjectsForTeam(teamId: string): Promise<Project[]> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    // AUTHORIZATION
-    await teamService.getTeam(teamId) // Throws if team is inaccessible
-
-    return mockProjects.filter((p) => p.teamId === teamId).map((p) => ({ ...p }))
+    // AUTHORIZATION ensures the user can access the team first
+    await teamService.getTeam(teamId)
+    const projects = await fetchProjectsApi()
+    return projects.filter((p) => p.teamId === teamId)
   },
 
   /**
    * Get all projects for teams associated with a specific user.
    */
-  async getProjectsForUser(userId: string): Promise<Project[]> {
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    const userTeams = await teamService.getTeamsForUser(userId)
-    const userTeamIds = new Set(userTeams.map((t) => t.id))
-    return mockProjects
-      .filter((p) => userTeamIds.has(p.teamId))
-      .map((p) => ({ ...p }))
+  async getProjectsForUser(_userId: string): Promise<Project[]> {
+    return fetchProjectsApi()
   },
 
   /**
    * Get all projects assigned to a specific mentor by mentorId.
    */
-  async getProjectsForMentor(mentorId: string): Promise<Project[]> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    return mockProjects.filter((p) => p.mentorId === mentorId).map((p) => ({ ...p }))
+  async getProjectsForMentor(_mentorId: string): Promise<Project[]> {
+    return fetchProjectsApi()
   },
 
   /**

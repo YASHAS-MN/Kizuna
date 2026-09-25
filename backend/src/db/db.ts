@@ -35,7 +35,8 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      mentor_id TEXT REFERENCES users(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS team_members (
@@ -82,9 +83,9 @@ export function initDatabase() {
     insertUser.run('u10', 'hi', 'hi@kizuna.edu', 'STUDENT', hiPasswordHash);
 
     // Seed Teams
-    const insertTeam = db.prepare('INSERT INTO teams (id, name, created_at) VALUES (?, ?, ?)');
-    insertTeam.run('t1', 'Team Alpha', '2026-08-01T00:00:00.000Z');
-    insertTeam.run('t2', 'Team Beta', '2026-08-05T00:00:00.000Z');
+    const insertTeam = db.prepare('INSERT INTO teams (id, name, created_at, mentor_id) VALUES (?, ?, ?, ?)');
+    insertTeam.run('t1', 'Team Alpha', '2026-08-01T00:00:00.000Z', 'u4'); // Sarah
+    insertTeam.run('t2', 'Team Beta', '2026-08-05T00:00:00.000Z', 'u5'); // Alan
 
     // Seed Memberships
     const insertMember = db.prepare('INSERT INTO team_members (team_id, user_id, membership_role) VALUES (?, ?, ?)');

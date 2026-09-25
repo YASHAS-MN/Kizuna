@@ -4,6 +4,7 @@ import healthRouter from './routes/health.js'
 import usersRouter from './routes/users.routes.js'
 import teamsRouter from './routes/teams.routes.js'
 import projectsRouter from './routes/projects.routes.js'
+import tasksRouter from './routes/tasks.routes.js'
 import authRouter from './routes/auth.routes.js'
 import { createAuthMiddleware } from './middlewares/auth.middleware.js'
 import { AuthService } from './services/auth.service.js'
@@ -33,6 +34,7 @@ app.use('/api', healthRouter)
 app.use('/api', usersRouter)
 app.use('/api', teamsRouter)
 app.use('/api', projectsRouter)
+app.use('/api', tasksRouter)
 app.use('/api', authRouter)
 
 // Catch-all 404 Handler for unknown routes

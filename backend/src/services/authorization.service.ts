@@ -2,10 +2,13 @@ import { User } from '../models/user.js';
 import { TeamRepository } from '../repositories/team.repository.js';
 import { ProjectRepository } from '../repositories/project.repository.js';
 
+import { TaskRepository } from '../repositories/task.repository.js';
+
 export class AuthorizationService {
   constructor(
     private teamRepository: TeamRepository,
-    private projectRepository: ProjectRepository
+    private projectRepository: ProjectRepository,
+    private taskRepository: TaskRepository
   ) {}
 
   async canAccessTeam(user: User, teamId: string): Promise<boolean> {
@@ -36,6 +39,19 @@ export class AuthorizationService {
   async canModifyProject(user: User, projectId: string): Promise<boolean> {
     if (user.role === 'STUDENT') {
       return this.canAccessProject(user, projectId);
+    }
+    return false; // Mentors cannot modify
+  }
+
+  async canAccessTask(user: User, taskId: string): Promise<boolean> {
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) return false;
+    return this.canAccessProject(user, task.projectId);
+  }
+
+  async canModifyTask(user: User, taskId: string): Promise<boolean> {
+    if (user.role === 'STUDENT') {
+      return this.canAccessTask(user, taskId);
     }
     return false; // Mentors cannot modify
   }

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { loginApi, logoutApi, fetchCurrentUserMeApi } from '../services/api/auth'
 import type { User } from '../services/api/auth'
+import { sessionService } from '../services/sessionService'
 
 interface AuthContextType {
   user: User | null
@@ -15,6 +16,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Sync with sessionService for backend-like domain authorization
+  useEffect(() => {
+    sessionService.setCurrentUser(user)
+  }, [user])
 
   useEffect(() => {
     fetchCurrentUserMeApi()

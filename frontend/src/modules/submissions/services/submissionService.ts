@@ -5,6 +5,9 @@ import type {
   SubmissionStatus
 } from '../types/submission.types'
 import { emitActivity } from '../../activity/services/activityService'
+import { projectService } from '../../projects/services/projectService'
+import { teamService } from '../../teams/services/teamService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 type Listener = () => void
 const listeners: Set<Listener> = new Set()
@@ -59,6 +62,13 @@ export const submissionService = {
       return []
     }
 
+    // AUTHORIZATION
+    const project = await projectService.getProject(projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanAccessProjectResources(project, team)
+
     return mockSubmissions
       .filter((s) => s.projectId === projectId.trim())
       .slice()
@@ -72,7 +82,16 @@ export const submissionService = {
   async getSubmission(submissionId: string): Promise<Submission | null> {
     await new Promise((resolve) => setTimeout(resolve, 80))
     const item = mockSubmissions.find((s) => s.id === submissionId)
-    return item ? { ...item } : null
+    if (!item) return null
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(item.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanAccessSubmission(item, project, team)
+
+    return { ...item }
   },
 
   /**
@@ -85,6 +104,17 @@ export const submissionService = {
     await new Promise((resolve) => setTimeout(resolve, 150))
 
     const cleanProjectId = input.projectId?.trim()
+    if (!cleanProjectId) {
+      throw new Error('Project ID is required to create a submission.')
+    }
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(cleanProjectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifySubmission({ projectId: cleanProjectId } as Submission, project, team)
+
     const cleanTitle = input.title?.trim()
     const cleanDesc = input.description?.trim()
     const submittedBy = (input.submittedBy || actor?.id || '').trim() || 'system'
@@ -146,6 +176,14 @@ export const submissionService = {
     }
 
     const current = mockSubmissions[index]
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(current.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifySubmission(current, project, team)
+
     if (current.status !== 'DRAFT') {
       throw new Error('Only draft submissions can be edited.')
     }
@@ -199,6 +237,14 @@ export const submissionService = {
     }
 
     const current = mockSubmissions[index]
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(current.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifySubmission(current, project, team)
+
     if (current.status !== 'DRAFT') {
       throw new Error('Only draft submissions can be submitted.')
     }

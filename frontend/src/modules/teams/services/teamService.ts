@@ -1,5 +1,5 @@
 import type { Team, TeamMember, TeamRole } from '../types/team.types'
-
+import { authorizationService } from '../../authorization/services/authorizationService'
 /**
  * In-memory team dataset for frontend prototype testing.
  */
@@ -121,7 +121,12 @@ export const teamService = {
   async getTeam(teamId: string): Promise<Team | null> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const team = mockTeams.find((t) => t.id === teamId)
-    return team ? JSON.parse(JSON.stringify(team)) : null
+    if (!team) return null
+
+    // AUTHORIZATION
+    authorizationService.assertCanAccessTeam(team)
+
+    return JSON.parse(JSON.stringify(team))
   },
 
   /**
@@ -130,7 +135,7 @@ export const teamService = {
   async getTeamsForUser(userId: string): Promise<Team[]> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const teams = mockTeams.filter(
-      (t) => t.members.some((m) => m.userId === userId) || userId === 'u1' || userId === 'u_active'
+      (t) => t.members.some((m) => m.userId === userId)
     )
     return JSON.parse(JSON.stringify(teams))
   },
@@ -158,6 +163,9 @@ export const teamService = {
       throw new Error('Team not found.')
     }
 
+    // AUTHORIZATION
+    authorizationService.assertCanModifyTeam(team)
+
     if (team.members.some((m) => m.userId === user.id)) {
       throw new Error('User is already a member of this team.')
     }
@@ -183,6 +191,9 @@ export const teamService = {
       throw new Error('Team not found.')
     }
 
+    // AUTHORIZATION
+    authorizationService.assertCanModifyTeam(team)
+
     const member = team.members.find((m) => m.userId === userId)
     if (!member) {
       throw new Error('Member not found in team.')
@@ -202,6 +213,9 @@ export const teamService = {
     if (!team) {
       throw new Error('Team not found.')
     }
+
+    // AUTHORIZATION
+    authorizationService.assertCanModifyTeam(team)
 
     team.members = team.members.filter((m) => m.userId !== userId)
     notifyListeners()

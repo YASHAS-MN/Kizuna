@@ -2,6 +2,7 @@ import type { Project } from '../types/project.types'
 import type { ActivityActor } from '../../activity/types/activity.types'
 import { teamService } from '../../teams/services/teamService'
 import { emitActivity } from '../../activity/services/activityService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 /**
  * In-memory mock database for projects during frontend prototyping.
@@ -65,6 +66,11 @@ export const projectService = {
   }): Promise<Project> {
     await new Promise((resolve) => setTimeout(resolve, 300))
 
+    // AUTHORIZATION
+    const team = await teamService.getTeam(data.teamId) // Throws if team is inaccessible
+    if (!team) throw new Error('Project team not found')
+    authorizationService.assertCanModifyTeam(team)
+
     const cleanName = data.name.trim()
     const cleanDesc = data.description.trim()
 
@@ -114,7 +120,14 @@ export const projectService = {
   async getProject(projectId: string): Promise<Project | null> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const project = mockProjects.find((p) => p.id === projectId)
-    return project ? { ...project } : null
+    if (!project) return null
+
+    // AUTHORIZATION
+    const team = await teamService.getTeam(project.teamId) // Throws if team is inaccessible
+    if (!team) throw new Error('Project team not found')
+    authorizationService.assertCanAccessProject(project, team)
+
+    return { ...project }
   },
 
   /**
@@ -122,6 +135,9 @@ export const projectService = {
    */
   async getProjectsForTeam(teamId: string): Promise<Project[]> {
     await new Promise((resolve) => setTimeout(resolve, 150))
+    // AUTHORIZATION
+    await teamService.getTeam(teamId) // Throws if team is inaccessible
+
     return mockProjects.filter((p) => p.teamId === teamId).map((p) => ({ ...p }))
   },
 
@@ -130,16 +146,11 @@ export const projectService = {
    */
   async getProjectsForUser(userId: string): Promise<Project[]> {
     await new Promise((resolve) => setTimeout(resolve, 200))
-    try {
-      const userTeams = await teamService.getTeamsForUser(userId)
-      const userTeamIds = new Set(userTeams.map((t) => t.id))
-      return mockProjects
-        .filter((p) => userTeamIds.has(p.teamId) || userId === 'u1' || userId === 'u_active')
-        .map((p) => ({ ...p }))
-    } catch (err) {
-      console.error('Failed to resolve user teams for projects:', err)
-      return mockProjects.map((p) => ({ ...p }))
-    }
+    const userTeams = await teamService.getTeamsForUser(userId)
+    const userTeamIds = new Set(userTeams.map((t) => t.id))
+    return mockProjects
+      .filter((p) => userTeamIds.has(p.teamId))
+      .map((p) => ({ ...p }))
   },
 
   /**
@@ -159,6 +170,13 @@ export const projectService = {
     if (index === -1) {
       throw new Error('Project not found.')
     }
+
+    const project = mockProjects[index]
+    const team = await teamService.getTeam(project.teamId) // Throws if team is inaccessible
+    if (!team) throw new Error('Project team not found')
+
+    // AUTHORIZATION
+    authorizationService.assertCanModifyProject(project, team)
 
     mockProjects[index] = {
       ...mockProjects[index],

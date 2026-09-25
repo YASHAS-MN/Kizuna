@@ -1,6 +1,9 @@
 import type { SubmissionReview } from '../types/review.types'
 import { submissionService } from '../../submissions/services/submissionService'
 import { emitActivity } from '../../activity/services/activityService'
+import { projectService } from '../../projects/services/projectService'
+import { teamService } from '../../teams/services/teamService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 type Listener = () => void
 const listeners: Set<Listener> = new Set()
@@ -30,6 +33,10 @@ export const reviewService = {
 
   async getReviewForSubmission(submissionId: string): Promise<SubmissionReview | null> {
     await new Promise((resolve) => setTimeout(resolve, 80))
+
+    // AUTHORIZATION: verify caller can access the submission
+    await submissionService.getSubmission(submissionId) // Throws UnauthorizedError if not permitted
+
     const item = mockReviews.find((r) => r.submissionId === submissionId)
     return item ? { ...item } : null
   },
@@ -44,6 +51,14 @@ export const reviewService = {
     if (!submission) {
       throw new Error('Submission not found.')
     }
+
+    // AUTHORIZATION: only the assigned mentor may review
+    const project = await projectService.getProject(submission.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanReviewSubmission(submission, project, team)
+
     if (submission.status !== 'SUBMITTED') {
       throw new Error('Can only start review for SUBMITTED submissions.')
     }

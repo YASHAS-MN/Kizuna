@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import type { Project } from '../types/project.types'
 import { projectService } from '../services/projectService'
 import { teamService } from '../../teams/services/teamService'
+import { UnauthorizedError } from '../../authorization/types/authorization.types'
 import ProjectOverview from '../components/ProjectOverview'
 import TasksPage from '../../tasks/pages/TasksPage'
 import ActivityPage from '../../activity/pages/ActivityPage'
@@ -50,8 +51,12 @@ export default function ProjectWorkspacePage() {
         }
       }
     } catch (err) {
-      console.error('Failed to load project workspace:', err)
-      setErrorMsg('Failed to load project workspace.')
+      if (err instanceof UnauthorizedError) {
+        setErrorMsg('Access denied.')
+      } else {
+        console.error('Failed to load project workspace:', err)
+        setErrorMsg('Failed to load project workspace.')
+      }
     } finally {
       setLoading(false)
     }

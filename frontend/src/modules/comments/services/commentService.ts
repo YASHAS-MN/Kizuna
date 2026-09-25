@@ -1,6 +1,9 @@
 import type { Comment, CommentAuthor } from '../types/comment.types'
 import { taskService } from '../../tasks/services/taskService'
 import { emitActivity } from '../../activity/services/activityService'
+import { projectService } from '../../projects/services/projectService'
+import { teamService } from '../../teams/services/teamService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 let mockComments: Comment[] = [
   {
@@ -47,7 +50,7 @@ export const commentService = {
       throw new Error('A valid task ID is required to load comments.')
     }
 
-    const task = await taskService.getTask(taskId)
+    const task = await taskService.getTask(taskId) // getTask enforces read access
     if (!task) {
       throw new Error(`Task with ID "${taskId}" was not found.`)
     }
@@ -73,10 +76,18 @@ export const commentService = {
       throw new Error('A valid comment author is required.')
     }
 
-    const task = await taskService.getTask(taskId)
+    // Verify task exists and actor can write comments (derives from project membership)
+    const task = await taskService.getTask(taskId) // getTask enforces read access
     if (!task) {
       throw new Error(`Cannot add a comment: task "${taskId}" does not exist.`)
     }
+
+    // AUTHORIZATION: must be able to modify project resources
+    const project = await projectService.getProject(task.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifyProjectResources(project, team)
 
     const newComment: Comment = {
       id: `c_${Date.now()}`,
@@ -113,8 +124,15 @@ export const commentService = {
     const [removed] = mockComments.splice(index, 1)
     notifyListeners()
 
-    const task = await taskService.getTask(removed.taskId)
+    const task = await taskService.getTask(removed.taskId) // Enforces read access on task
     if (task) {
+      // AUTHORIZATION: check caller can modify project resources
+      const project = await projectService.getProject(task.projectId)
+      if (!project) throw new Error('Project not found')
+      const team = await teamService.getTeam(project.teamId)
+      if (!team) throw new Error('Team not found')
+      authorizationService.assertCanModifyProjectResources(project, team)
+
       emitActivity({
         projectId: task.projectId,
         actorId: actor?.id || removed.authorId,

@@ -3,6 +3,7 @@ import type { ActivityActor } from '../../activity/types/activity.types'
 import { projectService } from '../../projects/services/projectService'
 import { teamService } from '../../teams/services/teamService'
 import { emitActivity } from '../../activity/services/activityService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 function actorFields(actor?: ActivityActor) {
   return {
@@ -115,14 +116,21 @@ export const taskService = {
       throw new Error('Task assignee must be selected.')
     }
 
-    // Verify project exists
+    // Verify project exists (getProject also enforces read access)
     const project = await projectService.getProject(data.projectId)
     if (!project) {
       throw new Error(`Project with ID "${data.projectId}" does not exist.`)
     }
 
-    // Verify assignee belongs to project's team
     const team = await teamService.getTeam(project.teamId)
+    if (!team) {
+      throw new Error('Project team not found.')
+    }
+    
+    // AUTHORIZATION
+    authorizationService.assertCanModifyProject(project, team)
+
+    // Verify assignee belongs to project's team
     if (team) {
       const isMember = team.members.some((m) => m.userId === data.assigneeId)
       if (!isMember) {
@@ -162,7 +170,12 @@ export const taskService = {
   async getTask(taskId: string): Promise<Task | null> {
     await new Promise((resolve) => setTimeout(resolve, 100))
     const task = mockTasks.find((t) => t.id === taskId)
-    return task ? { ...task } : null
+    if (!task) return null
+
+    // AUTHORIZATION (getProject implicitly checks access)
+    await projectService.getProject(task.projectId)
+
+    return { ...task }
   },
 
   /**
@@ -170,6 +183,10 @@ export const taskService = {
    */
   async getTasksForProject(projectId: string): Promise<Task[]> {
     await new Promise((resolve) => setTimeout(resolve, 150))
+
+    // AUTHORIZATION (getProject implicitly checks access)
+    await projectService.getProject(projectId)
+
     return mockTasks.filter((t) => t.projectId === projectId).map((t) => ({ ...t }))
   },
 
@@ -182,6 +199,14 @@ export const taskService = {
     if (!task) {
       throw new Error('Task not found.')
     }
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(task.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifyTask(task, project, team)
+
     const previousStatus = task.status
     if (previousStatus === status) {
       return { ...task }
@@ -214,13 +239,16 @@ export const taskService = {
       throw new Error('Task not found.')
     }
 
-    // Verify new assignee belongs to team
+    // AUTHORIZATION & Verify new assignee belongs to team
     const project = await projectService.getProject(task.projectId)
-    if (project) {
-      const team = await teamService.getTeam(project.teamId)
-      if (team && !team.members.some((m) => m.userId === assigneeId)) {
-        throw new Error(`User "${assigneeName}" is not a member of team "${team.name}".`)
-      }
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    
+    authorizationService.assertCanModifyTask(task, project, team)
+
+    if (!team.members.some((m) => m.userId === assigneeId)) {
+      throw new Error(`User "${assigneeName}" is not a member of team "${team.name}".`)
     }
 
     const previousAssigneeId = task.assigneeId
@@ -259,6 +287,15 @@ export const taskService = {
       throw new Error('Task not found.')
     }
 
+    const task = mockTasks[index]
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(task.projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanModifyTask(task, project, team)
+
     const previous = mockTasks[index]
     mockTasks[index] = {
       ...previous,
@@ -287,6 +324,16 @@ export const taskService = {
   async deleteTask(taskId: string, actor?: ActivityActor): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, 150))
     const task = mockTasks.find((t) => t.id === taskId)
+    
+    if (task) {
+      // AUTHORIZATION
+      const project = await projectService.getProject(task.projectId)
+      if (!project) throw new Error('Project not found')
+      const team = await teamService.getTeam(project.teamId)
+      if (!team) throw new Error('Team not found')
+      authorizationService.assertCanModifyTask(task, project, team)
+    }
+
     const initialLength = mockTasks.length
     mockTasks = mockTasks.filter((t) => t.id !== taskId)
     if (mockTasks.length !== initialLength && task) {

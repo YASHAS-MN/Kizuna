@@ -1,4 +1,7 @@
 import type { ActivityEmission, ActivityEvent } from '../types/activity.types'
+import { projectService } from '../../projects/services/projectService'
+import { teamService } from '../../teams/services/teamService'
+import { authorizationService } from '../../authorization/services/authorizationService'
 
 /**
  * In-memory activity event log.
@@ -197,6 +200,13 @@ export const activityService = {
     if (!projectId || !projectId.trim()) {
       throw new Error('A valid project ID is required to load activity.')
     }
+
+    // AUTHORIZATION
+    const project = await projectService.getProject(projectId)
+    if (!project) throw new Error('Project not found')
+    const team = await teamService.getTeam(project.teamId)
+    if (!team) throw new Error('Team not found')
+    authorizationService.assertCanAccessProjectResources(project, team)
 
     return mockEvents
       .filter((event) => event.projectId === projectId)

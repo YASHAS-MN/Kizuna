@@ -1,14 +1,15 @@
 import { User } from '../models/user.js';
 import { TeamRepository } from '../repositories/team.repository.js';
 import { ProjectRepository } from '../repositories/project.repository.js';
-
 import { TaskRepository } from '../repositories/task.repository.js';
+import { CommentRepository } from '../repositories/comment.repository.js';
 
 export class AuthorizationService {
   constructor(
     private teamRepository: TeamRepository,
     private projectRepository: ProjectRepository,
-    private taskRepository: TaskRepository
+    private taskRepository: TaskRepository,
+    private commentRepository?: CommentRepository
   ) {}
 
   async canAccessTeam(user: User, teamId: string): Promise<boolean> {
@@ -30,7 +31,6 @@ export class AuthorizationService {
 
   async canModifyTeam(user: User, teamId: string): Promise<boolean> {
     if (user.role === 'STUDENT') {
-      // Students can modify their own team in this domain ruleset (or let's just say access = modify for students for now)
       return this.canAccessTeam(user, teamId);
     }
     return false; // Mentors cannot modify
@@ -54,5 +54,22 @@ export class AuthorizationService {
       return this.canAccessTask(user, taskId);
     }
     return false; // Mentors cannot modify
+  }
+
+  async canAccessComment(user: User, commentId: string): Promise<boolean> {
+    if (!this.commentRepository) return false;
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) return false;
+    return this.canAccessTask(user, comment.taskId);
+  }
+
+  async canModifyComment(user: User, commentId: string): Promise<boolean> {
+    if (user.role !== 'STUDENT') {
+      return false; // Mentors cannot modify/delete comments
+    }
+    if (!this.commentRepository) return false;
+    const comment = await this.commentRepository.findById(commentId);
+    if (!comment) return false;
+    return this.canModifyTask(user, comment.taskId);
   }
 }

@@ -167,8 +167,8 @@ server.listen(PORT, async () => {
 
     // Student Alice tries to update task in p2 (should fail)
     // First, let's create a task in p2 using David (u8)
-    const davidRes = await request('/api/auth/login', 'POST', { email: 'david.s@example.com', password: 'password123' });
-    const davidCookie = davidRes.headers['set-cookie'];
+    const davidRes = await request('/api/auth/login', 'POST', { email: 'david@kizuna.edu', password: 'kizuna123' });
+    const davidCookie = davidRes.headers['set-cookie'][0];
     res = await request('/api/tasks', 'POST', {
       projectId: 'p2', title: 'David Task', description: 'desc', module: 'AI', priority: 'MEDIUM', assigneeId: 'u8', assigneeName: 'David'
     }, davidCookie);
@@ -187,6 +187,73 @@ server.listen(PORT, async () => {
     res = await request('/api/tasks?projectId=p1', 'GET', null, null);
     console.assert(res.status === 401, 'Unauthenticated read should fail');
     console.log('Unauthenticated GET /api/tasks -> 401 OK');
+
+    console.log('\n--- Comment Authorization Tests ---');
+    // 1. Unauthenticated read -> 401
+    res = await request('/api/tasks/t_1/comments', 'GET');
+    console.assert(res.status === 401, 'Unauthenticated GET /api/tasks/t_1/comments should return 401');
+    console.log('Unauthenticated GET /api/tasks/t_1/comments -> 401 OK');
+
+    // 2. Unauthenticated create -> 401
+    res = await request('/api/tasks/t_1/comments', 'POST', { content: 'test' });
+    console.assert(res.status === 401, 'Unauthenticated POST /api/tasks/t_1/comments should return 401');
+    console.log('Unauthenticated POST /api/tasks/t_1/comments -> 401 OK');
+
+    // 3. Authorized student Alice reads comments -> 200
+    res = await request('/api/tasks/t_1/comments', 'GET', null, aliceCookie);
+    console.assert(res.status === 200 && Array.isArray(res.data), 'Alice should be able to read t_1 comments');
+    console.log('Alice GET /api/tasks/t_1/comments -> 200 OK');
+
+    // 4. Authorized student Alice creates comment -> 201
+    res = await request('/api/tasks/t_1/comments', 'POST', { content: 'Alice comment content' }, aliceCookie);
+    console.assert(res.status === 201 && res.data.authorId === 'u1' && res.data.authorName === 'Alice Watson', 'Alice should create comment with session identity');
+    const createdCommentId = res.data.id;
+    console.log('Alice POST /api/tasks/t_1/comments -> 201 OK, commentId:', createdCommentId);
+
+    // 5. Whitespace-only comment -> 400
+    res = await request('/api/tasks/t_1/comments', 'POST', { content: '   ' }, aliceCookie);
+    console.assert(res.status === 400, 'Empty/whitespace comment should return 400');
+    console.log('Alice POST /api/tasks/t_1/comments (whitespace) -> 400 OK');
+
+    // 6. Mentor Sarah (assigned to t1/p1) reads comments -> 200
+    res = await request('/api/tasks/t_1/comments', 'GET', null, sarahCookie);
+    console.assert(res.status === 200, 'Sarah should read comments for assigned team project task');
+    console.log('Sarah GET /api/tasks/t_1/comments -> 200 OK');
+
+    // 7. Mentor Sarah attempts to create comment -> 403
+    res = await request('/api/tasks/t_1/comments', 'POST', { content: 'Mentor comment' }, sarahCookie);
+    console.assert(res.status === 403, 'Mentor Sarah cannot post comments');
+    console.log('Sarah POST /api/tasks/t_1/comments -> 403 OK');
+
+    // 8. Mentor Sarah attempts to delete comment -> 403
+    res = await request(`/api/comments/${createdCommentId}`, 'DELETE', null, sarahCookie);
+    console.assert(res.status === 403, 'Mentor Sarah cannot delete comments');
+    console.log(`Sarah DELETE /api/comments/${createdCommentId} -> 403 OK`);
+
+    // 9. Mentor Alan (not assigned to Team Alpha) reads comments -> 403
+    res = await request('/api/tasks/t_1/comments', 'GET', null, alanCookie);
+    console.assert(res.status === 403, 'Alan should not read t_1 comments');
+    console.log('Alan GET /api/tasks/t_1/comments -> 403 OK');
+
+    // 10. Cross-team student David (Team Beta) reads comments -> 403
+    res = await request('/api/tasks/t_1/comments', 'GET', null, davidCookie);
+    console.assert(res.status === 403, 'David should not read t_1 comments');
+    console.log('David GET /api/tasks/t_1/comments -> 403 OK');
+
+    // 11. Cross-team student David creates comment -> 403
+    res = await request('/api/tasks/t_1/comments', 'POST', { content: 'Cross team comment' }, davidCookie);
+    console.assert(res.status === 403, 'David cannot create comment in t_1');
+    console.log('David POST /api/tasks/t_1/comments -> 403 OK');
+
+    // 12. Cross-team student David deletes comment -> 403
+    res = await request(`/api/comments/${createdCommentId}`, 'DELETE', null, davidCookie);
+    console.assert(res.status === 403, 'David cannot delete comment in t_1');
+    console.log(`David DELETE /api/comments/${createdCommentId} -> 403 OK`);
+
+    // 13. Authorized student Alice deletes comment -> 200
+    res = await request(`/api/comments/${createdCommentId}`, 'DELETE', null, aliceCookie);
+    console.assert(res.status === 200, 'Alice should be able to delete comment');
+    console.log(`Alice DELETE /api/comments/${createdCommentId} -> 200 OK`);
 
     console.log('\nAll tests passed!');
   } catch (err) {

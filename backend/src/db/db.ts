@@ -73,6 +73,17 @@ export function initDatabase() {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
       FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      author_id TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   // Seeding check: query row count in users table
@@ -122,6 +133,11 @@ export function initDatabase() {
     insertTask.run('t_2', 'p1', 'Dashboard & Navigation UI', 'Design responsive command center header navbar, workspace quick links, and activity feed widgets.', 'TODO', 'MEDIUM', 'u2', 'Bob Jenkins', 'Frontend', '2026-08-16T00:00:00.000Z', '2026-09-02');
     insertTask.run('t_3', 'p1', 'REST API Integration Testing', 'Write end-to-end integration tests verifying CORS credentials, status codes, and error payloads.', 'REVIEW', 'HIGH', 'u3', 'Charlie Kim', 'Testing', '2026-08-17T00:00:00.000Z', '2026-08-28');
     
+    // Seed Comments
+    const insertComment = db.prepare('INSERT INTO comments (id, task_id, author_id, author_name, content, created_at) VALUES (?, ?, ?, ?, ?, ?)');
+    insertComment.run('c_1', 't_1', 'u1', 'Alice Watson', 'Can you verify the API response format?', '2026-08-20T10:12:00.000Z');
+    insertComment.run('c_2', 't_1', 'u2', 'Bob Jenkins', "Yes, I'll check it today.", '2026-08-20T10:35:00.000Z');
+
     console.log('SQLite database seeded successfully.');
   } else {
     console.log('SQLite database already populated. Seeding skipped.');

@@ -255,6 +255,49 @@ server.listen(PORT, async () => {
     console.assert(res.status === 200, 'Alice should be able to delete comment');
     console.log(`Alice DELETE /api/comments/${createdCommentId} -> 200 OK`);
 
+    console.log('\n--- Activity Authorization Tests ---');
+    // 1. Unauthenticated activity read -> 401
+    res = await request('/api/projects/p1/activity', 'GET');
+    console.assert(res.status === 401, 'Unauthenticated GET /api/projects/p1/activity should return 401');
+    console.log('Unauthenticated GET /api/projects/p1/activity -> 401 OK');
+
+    // 2. Authorized student Alice activity read -> 200
+    res = await request('/api/projects/p1/activity', 'GET', null, aliceCookie);
+    console.assert(res.status === 200 && Array.isArray(res.data), 'Alice should read p1 activity');
+    console.log('Alice GET /api/projects/p1/activity -> 200 OK');
+
+    // 3. Unauthorized student David activity read -> 403
+    res = await request('/api/projects/p1/activity', 'GET', null, davidCookie);
+    console.assert(res.status === 403, 'David should not read p1 activity');
+    console.log('David GET /api/projects/p1/activity -> 403 OK');
+
+    // 4. Assigned mentor Sarah activity read -> 200
+    res = await request('/api/projects/p1/activity', 'GET', null, sarahCookie);
+    console.assert(res.status === 200 && Array.isArray(res.data), 'Sarah should read p1 activity');
+    console.log('Sarah GET /api/projects/p1/activity -> 200 OK');
+
+    // 5. Unassigned mentor Alan activity read -> 403
+    res = await request('/api/projects/p1/activity', 'GET', null, alanCookie);
+    console.assert(res.status === 403, 'Alan should not read p1 activity');
+    console.log('Alan GET /api/projects/p1/activity -> 403 OK');
+
+    // 6. Authorized student Alice creates activity event -> 201 with session actor identity
+    res = await request('/api/projects/p1/activity', 'POST', {
+      type: 'TASK_CREATED',
+      message: 'created test activity task',
+      taskId: 't_1'
+    }, aliceCookie);
+    console.assert(res.status === 201 && res.data.actorId === 'u1' && res.data.actorName === 'Alice Watson', 'Actor identity must match authenticated session user');
+    console.log('Alice POST /api/projects/p1/activity -> 201 OK, actor identity enforced');
+
+    // 7. Unauthorized student David attempts cross-project event creation -> 403
+    res = await request('/api/projects/p1/activity', 'POST', {
+      type: 'TASK_CREATED',
+      message: 'manufactured event'
+    }, davidCookie);
+    console.assert(res.status === 403, 'David cannot manufacture activity event in p1');
+    console.log('David POST /api/projects/p1/activity (cross-project manufacturing) -> 403 OK');
+
     console.log('\nAll tests passed!');
   } catch (err) {
     console.error('Test failed:', err);

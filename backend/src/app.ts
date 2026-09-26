@@ -9,6 +9,8 @@ import commentsRouter from './routes/comments.routes.js'
 import activityRouter from './routes/activity.routes.js'
 import progressRouter from './routes/progress.routes.js'
 import authRouter from './routes/auth.routes.js'
+import submissionsRouter from './routes/submissions.routes.js'
+import reviewsRouter from './routes/reviews.routes.js'
 import { createAuthMiddleware } from './middlewares/auth.middleware.js'
 import { AuthService } from './services/auth.service.js'
 import { userRepository, sessionRepository } from './repositories/index.js'
@@ -41,6 +43,8 @@ app.use('/api', tasksRouter)
 app.use('/api', commentsRouter)
 app.use('/api', activityRouter)
 app.use('/api', progressRouter)
+app.use('/api', submissionsRouter)
+app.use('/api', reviewsRouter)
 app.use('/api', authRouter)
 
 // Catch-all 404 Handler for unknown routes

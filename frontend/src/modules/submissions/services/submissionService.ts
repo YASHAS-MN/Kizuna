@@ -4,10 +4,13 @@ import type {
   UpdateSubmissionInput,
   SubmissionStatus
 } from '../types/submission.types'
-import { emitActivity } from '../../activity/services/activityService'
-import { projectService } from '../../projects/services/projectService'
-import { teamService } from '../../teams/services/teamService'
-import { authorizationService } from '../../authorization/services/authorizationService'
+import {
+  fetchSubmissionsForProjectApi,
+  fetchSubmissionByIdApi,
+  createSubmissionApi,
+  updateSubmissionApi,
+  submitSubmissionApi
+} from '../../../services/api/submissions'
 
 type Listener = () => void
 const listeners: Set<Listener> = new Set()
@@ -22,29 +25,10 @@ function notifyListeners() {
   })
 }
 
-/**
- * In-memory mock submissions store.
- * Seeded with an initial deliverable for project 'p1'.
- */
-let mockSubmissions: Submission[] = [
-  {
-    id: 'sub_1',
-    projectId: 'p1',
-    title: 'Milestone 1: Architectural Foundation & Threat Model',
-    description: 'Formal architectural blueprint, module responsibility boundaries, and threat model specification.',
-    submittedBy: 'u1',
-    submittedByName: 'Alice Watson',
-    status: 'SUBMITTED',
-    version: 1,
-    createdAt: '2026-08-22T10:00:00.000Z',
-    updatedAt: '2026-08-22T14:30:00.000Z',
-    submittedAt: '2026-08-22T14:30:00.000Z'
-  }
-]
-
 export const submissionService = {
   /**
-   * Subscribe to submission changes.
+   * Subscribe to submission changes (local notifications only; mutations
+   * now persist through the backend).
    */
   subscribe(listener: Listener): () => void {
     listeners.add(listener)
@@ -54,253 +38,99 @@ export const submissionService = {
   },
 
   /**
-   * Get all submissions for a project, ordered newest/most recently updated first.
+   * Get all submissions for a project, newest first.
+   * Authorization is enforced on the backend via the authenticated session.
    */
   async getSubmissionsForProject(projectId: string): Promise<Submission[]> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-    if (!projectId || !projectId.trim()) {
-      return []
-    }
-
-    // AUTHORIZATION
-    const project = await projectService.getProject(projectId)
-    if (!project) throw new Error('Project not found')
-    const team = await teamService.getTeam(project.teamId)
-    if (!team) throw new Error('Team not found')
-    authorizationService.assertCanAccessProjectResources(project, team)
-
-    return mockSubmissions
-      .filter((s) => s.projectId === projectId.trim())
-      .slice()
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .map((s) => ({ ...s }))
+    if (!projectId || !projectId.trim()) return []
+    return fetchSubmissionsForProjectApi(projectId.trim())
   },
 
   /**
    * Get a single submission by ID.
+   * Returns null if not found or not accessible.
    */
   async getSubmission(submissionId: string): Promise<Submission | null> {
-    await new Promise((resolve) => setTimeout(resolve, 80))
-    const item = mockSubmissions.find((s) => s.id === submissionId)
-    if (!item) return null
-
-    // AUTHORIZATION
-    const project = await projectService.getProject(item.projectId)
-    if (!project) throw new Error('Project not found')
-    const team = await teamService.getTeam(project.teamId)
-    if (!team) throw new Error('Team not found')
-    authorizationService.assertCanAccessSubmission(item, project, team)
-
-    return { ...item }
+    try {
+      return await fetchSubmissionByIdApi(submissionId)
+    } catch {
+      return null
+    }
   },
 
   /**
    * Create a new submission draft.
+   * submittedBy / submittedByName are derived from the authenticated session on the backend.
    */
   async createSubmission(
     input: CreateSubmissionInput,
-    actor?: { id: string; name: string }
+    _actor?: { id: string; name: string }
   ): Promise<Submission> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-
     const cleanProjectId = input.projectId?.trim()
-    if (!cleanProjectId) {
-      throw new Error('Project ID is required to create a submission.')
-    }
-
-    // AUTHORIZATION
-    const project = await projectService.getProject(cleanProjectId)
-    if (!project) throw new Error('Project not found')
-    const team = await teamService.getTeam(project.teamId)
-    if (!team) throw new Error('Team not found')
-    authorizationService.assertCanModifySubmission({ projectId: cleanProjectId } as Submission, project, team)
+    if (!cleanProjectId) throw new Error('Project ID is required to create a submission.')
 
     const cleanTitle = input.title?.trim()
     const cleanDesc = input.description?.trim()
-    const submittedBy = (input.submittedBy || actor?.id || '').trim() || 'system'
-    const submittedByName = (input.submittedByName || actor?.name || '').trim() || 'System'
+    if (!cleanTitle) throw new Error('Submission title is required.')
+    if (!cleanDesc) throw new Error('Submission description is required.')
 
-    if (!cleanProjectId) {
-      throw new Error('Project ID is required to create a submission.')
-    }
-    if (!cleanTitle) {
-      throw new Error('Submission title is required.')
-    }
-    if (!cleanDesc) {
-      throw new Error('Submission description is required.')
-    }
-
-    const now = new Date().toISOString()
-    const newSubmission: Submission = {
-      id: `sub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    const created = await createSubmissionApi({
       projectId: cleanProjectId,
       title: cleanTitle,
-      description: cleanDesc,
-      submittedBy,
-      submittedByName,
-      status: 'DRAFT',
-      version: 1,
-      createdAt: now,
-      updatedAt: now
-    }
-
-    mockSubmissions.unshift(newSubmission)
-
-    emitActivity({
-      projectId: newSubmission.projectId,
-      actorId: newSubmission.submittedBy,
-      actorName: newSubmission.submittedByName,
-      type: 'SUBMISSION_CREATED',
-      message: `created submission draft "${newSubmission.title}"`,
-      submissionId: newSubmission.id,
-      metadata: { submissionId: newSubmission.id }
+      description: cleanDesc
     })
 
     notifyListeners()
-    return { ...newSubmission }
+    return created
   },
 
   /**
    * Edit an existing submission draft. Only DRAFT submissions can be edited.
+   * Lifecycle enforcement is also done on the backend.
    */
   async updateSubmission(
     submissionId: string,
     input: UpdateSubmissionInput,
-    actor?: { id: string; name: string }
+    _actor?: { id: string; name: string }
   ): Promise<Submission> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-
-    const index = mockSubmissions.findIndex((s) => s.id === submissionId)
-    if (index === -1) {
-      throw new Error('Submission not found.')
-    }
-
-    const current = mockSubmissions[index]
-
-    // AUTHORIZATION
-    const project = await projectService.getProject(current.projectId)
-    if (!project) throw new Error('Project not found')
-    const team = await teamService.getTeam(project.teamId)
-    if (!team) throw new Error('Team not found')
-    authorizationService.assertCanModifySubmission(current, project, team)
-
-    if (current.status !== 'DRAFT') {
-      throw new Error('Only draft submissions can be edited.')
-    }
-
     const cleanTitle = input.title?.trim()
     const cleanDesc = input.description?.trim()
+    if (!cleanTitle) throw new Error('Submission title is required.')
+    if (!cleanDesc) throw new Error('Submission description is required.')
 
-    if (!cleanTitle) {
-      throw new Error('Submission title is required.')
-    }
-    if (!cleanDesc) {
-      throw new Error('Submission description is required.')
-    }
-
-    const now = new Date().toISOString()
-    const updated: Submission = {
-      ...current,
+    const updated = await updateSubmissionApi(submissionId, {
       title: cleanTitle,
-      description: cleanDesc,
-      updatedAt: now
-    }
-
-    mockSubmissions[index] = updated
-
-    emitActivity({
-      projectId: updated.projectId,
-      actorId: actor?.id || updated.submittedBy,
-      actorName: actor?.name || updated.submittedByName,
-      type: 'SUBMISSION_UPDATED',
-      message: `updated submission draft "${updated.title}"`,
-      submissionId: updated.id,
-      metadata: { submissionId: updated.id }
+      description: cleanDesc
     })
 
     notifyListeners()
-    return { ...updated }
+    return updated
   },
 
   /**
-   * Submit a draft submission. Changes status from DRAFT -> SUBMITTED.
+   * Submit a draft submission. Changes status from DRAFT → SUBMITTED.
    */
   async submitSubmission(
     submissionId: string,
-    actor?: { id: string; name: string }
+    _actor?: { id: string; name: string }
   ): Promise<Submission> {
-    await new Promise((resolve) => setTimeout(resolve, 150))
-
-    const index = mockSubmissions.findIndex((s) => s.id === submissionId)
-    if (index === -1) {
-      throw new Error('Submission not found.')
-    }
-
-    const current = mockSubmissions[index]
-
-    // AUTHORIZATION
-    const project = await projectService.getProject(current.projectId)
-    if (!project) throw new Error('Project not found')
-    const team = await teamService.getTeam(project.teamId)
-    if (!team) throw new Error('Team not found')
-    authorizationService.assertCanModifySubmission(current, project, team)
-
-    if (current.status !== 'DRAFT') {
-      throw new Error('Only draft submissions can be submitted.')
-    }
-
-    const now = new Date().toISOString()
-    const submitted: Submission = {
-      ...current,
-      status: 'SUBMITTED',
-      submittedAt: now,
-      updatedAt: now,
-      submittedBy: actor?.id || current.submittedBy,
-      submittedByName: actor?.name || current.submittedByName
-    }
-
-    mockSubmissions[index] = submitted
-
-    emitActivity({
-      projectId: submitted.projectId,
-      actorId: submitted.submittedBy,
-      actorName: submitted.submittedByName,
-      type: 'SUBMISSION_SUBMITTED',
-      message: `submitted deliverable "${submitted.title}" (v${submitted.version})`,
-      submissionId: submitted.id,
-      metadata: {
-        submissionId: submitted.id,
-        version: String(submitted.version)
-      }
-    })
-
+    const submitted = await submitSubmissionApi(submissionId)
     notifyListeners()
-    return { ...submitted }
+    return submitted
   },
 
   /**
-   * Update the status of a submission. Only for use by the reviewService.
+   * Update the status of a submission.
+   * This operation belongs to the Review domain (SUBMITTED → UNDER_REVIEW → REVIEWED).
+   * It will be implemented by the Review backend slice.
    */
   async updateSubmissionStatus(
-    submissionId: string,
-    status: SubmissionStatus
+    _submissionId: string,
+    _status: SubmissionStatus
   ): Promise<Submission> {
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    
-    const index = mockSubmissions.findIndex((s) => s.id === submissionId)
-    if (index === -1) {
-      throw new Error('Submission not found.')
-    }
-
-    const current = mockSubmissions[index]
-    const updated: Submission = {
-      ...current,
-      status,
-      updatedAt: new Date().toISOString()
-    }
-
-    mockSubmissions[index] = updated
-    notifyListeners()
-    return { ...updated }
+    throw new Error(
+      'updateSubmissionStatus is not available in the Submission slice. ' +
+      'The Review backend slice must provide SUBMITTED → UNDER_REVIEW → REVIEWED transitions.'
+    )
   }
 }

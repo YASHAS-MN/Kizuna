@@ -98,6 +98,36 @@ export function initDatabase() {
       metadata TEXT,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      submitted_by TEXT NOT NULL,
+      submitted_by_name TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'REVIEWED')),
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      submitted_at TEXT,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+      FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL UNIQUE,
+      reviewer_id TEXT NOT NULL,
+      reviewer_name TEXT NOT NULL,
+      feedback TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('IN_REVIEW', 'REVIEWED')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      reviewed_at TEXT,
+      FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   // Seeding check: query row count in users table
@@ -167,6 +197,22 @@ export function initDatabase() {
     insertActivity.run('act_11', 'p1', 'u1', 'Alice Watson', 'COMMENT_ADDED', 'commented on "Authentication & Session Module"', '2026-08-20T10:12:00.000Z', 't_1', null, null);
     insertActivity.run('act_12', 'p1', 'u2', 'Bob Jenkins', 'COMMENT_ADDED', 'commented on "Authentication & Session Module"', '2026-08-20T10:35:00.000Z', 't_1', null, null);
     insertActivity.run('act_13', 'p2', 'u8', 'David Smith', 'PROJECT_CREATED', 'created project "AI-Powered Resume Analyzer"', '2026-08-12T08:00:00.000Z', null, null, null);
+
+    // Seed Submissions
+    const insertSubmission = db.prepare('INSERT INTO submissions (id, project_id, title, description, submitted_by, submitted_by_name, status, version, created_at, updated_at, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    insertSubmission.run(
+      'sub_1',
+      'p1',
+      'Milestone 1: Architectural Foundation & Threat Model',
+      'Formal architectural blueprint, module responsibility boundaries, and threat model specification.',
+      'u1',
+      'Alice Watson',
+      'SUBMITTED',
+      1,
+      '2026-08-22T10:00:00.000Z',
+      '2026-08-22T14:30:00.000Z',
+      '2026-08-22T14:30:00.000Z'
+    );
 
     console.log('SQLite database seeded successfully.');
   } else {

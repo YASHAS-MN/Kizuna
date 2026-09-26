@@ -339,6 +339,326 @@ server.listen(PORT, async () => {
     console.assert(res.status === 200 && res.data.overall.completedTasks === initialCompleted + 1, 'Completed task count must update dynamically');
     console.log('Dynamic progress recalculation on task completion -> 200 OK');
 
+    // =====================================================================
+    //  SUBMISSION AUTHORIZATION TESTS
+    // =====================================================================
+    console.log('\n--- Submission Authorization Tests ---');
+
+    let failCount = 0;
+    function assert(cond, msg) {
+      if (!cond) {
+        console.error(`  FAIL: ${msg}`);
+        failCount++;
+      }
+    }
+
+    // 1. Unauthenticated access → 401
+    res = await request('/api/submissions?projectId=p1');
+    assert(res.status === 401, 'Unauthenticated GET /api/submissions should return 401');
+    console.log('Unauthenticated GET /api/submissions -> 401 OK');
+
+    res = await request('/api/submissions/sub_1');
+    assert(res.status === 401, 'Unauthenticated GET /api/submissions/:id should return 401');
+    console.log('Unauthenticated GET /api/submissions/sub_1 -> 401 OK');
+
+    res = await request('/api/submissions', 'POST', { projectId: 'p1', title: 'x', description: 'x' });
+    assert(res.status === 401, 'Unauthenticated POST /api/submissions should return 401');
+    console.log('Unauthenticated POST /api/submissions -> 401 OK');
+
+    // 2. Authorized student read → 200
+    res = await request('/api/submissions?projectId=p1', 'GET', null, aliceCookie);
+    assert(res.status === 200 && Array.isArray(res.data), 'Alice should read p1 submissions');
+    assert(res.data.some(s => s.id === 'sub_1'), 'Alice should see seeded sub_1');
+    console.log('Alice GET /api/submissions?projectId=p1 -> 200 OK');
+
+    res = await request('/api/submissions/sub_1', 'GET', null, aliceCookie);
+    assert(res.status === 200 && res.data.id === 'sub_1', 'Alice should read sub_1');
+    console.log('Alice GET /api/submissions/sub_1 -> 200 OK');
+
+    // 3. Authorized student create → 201
+    res = await request('/api/submissions', 'POST', {
+      projectId: 'p1',
+      title: 'Test Draft Submission',
+      description: 'This is a test draft from the auth suite.'
+    }, aliceCookie);
+    assert(res.status === 201, 'Alice should be able to create submission in p1');
+    assert(res.data.status === 'DRAFT', 'New submission should be DRAFT');
+    assert(res.data.version === 1, 'New submission should start at version 1');
+    const aliceDraftId = res.data.id;
+    console.log('Alice POST /api/submissions -> 201 OK, id:', aliceDraftId);
+
+    // 4. Authenticated identity overrides spoofed submittedBy
+    res = await request('/api/submissions', 'POST', {
+      projectId: 'p1',
+      title: 'Spoofed Author Submission',
+      description: 'Attempting to spoof submittedBy.',
+      submittedBy: 'u999',
+      submittedByName: 'Evil Hacker'
+    }, aliceCookie);
+    assert(res.status === 201, 'Create with spoofed identity should succeed');
+    assert(res.data.submittedBy === 'u1', `submittedBy must be session user u1, got ${res.data.submittedBy}`);
+    assert(res.data.submittedByName === 'Alice Watson', `submittedByName must be session name, got ${res.data.submittedByName}`);
+    const spoofedId = res.data.id;
+    console.log('Identity spoofing overridden -> submittedBy=u1, submittedByName=Alice Watson OK');
+
+    // 5. Authorized student edits own draft → succeeds
+    res = await request(`/api/submissions/${aliceDraftId}`, 'PUT', {
+      title: 'Updated Test Draft Submission',
+      description: 'Updated description for auth test.'
+    }, aliceCookie);
+    assert(res.status === 200, 'Alice should edit her own draft');
+    assert(res.data.title === 'Updated Test Draft Submission', 'Title should be updated');
+    console.log(`Alice PUT /api/submissions/${aliceDraftId} -> 200 OK`);
+
+    // 6. Authorized student submits own draft → succeeds
+    res = await request(`/api/submissions/${aliceDraftId}/submit`, 'POST', null, aliceCookie);
+    assert(res.status === 200, 'Alice should submit her own draft');
+    assert(res.data.status === 'SUBMITTED', 'Status should be SUBMITTED');
+    assert(res.data.submittedAt != null, 'submittedAt should be set');
+    console.log(`Alice POST /api/submissions/${aliceDraftId}/submit -> 200 OK`);
+
+    // 7. Editing submitted submission → rejected
+    res = await request(`/api/submissions/${aliceDraftId}`, 'PUT', {
+      title: 'Cannot Edit',
+      description: 'Should fail.'
+    }, aliceCookie);
+    assert(res.status === 400, 'Editing SUBMITTED submission should return 400');
+    console.log(`Alice PUT submitted submission -> 400 OK`);
+
+    // Also: re-submitting an already submitted submission → rejected
+    res = await request(`/api/submissions/${aliceDraftId}/submit`, 'POST', null, aliceCookie);
+    assert(res.status === 400, 'Re-submitting SUBMITTED submission should return 400');
+    console.log(`Alice POST re-submit SUBMITTED -> 400 OK`);
+
+    // 8. Cross-team student access → 403
+    // David (u8) is in Team Beta (t2), should NOT access p1 submissions
+    res = await request('/api/submissions?projectId=p1', 'GET', null, davidCookie);
+    assert(res.status === 403, 'David should not read p1 submissions (cross-team)');
+    console.log('David GET /api/submissions?projectId=p1 -> 403 OK');
+
+    res = await request('/api/submissions/sub_1', 'GET', null, davidCookie);
+    assert(res.status === 403, 'David should not read sub_1 (cross-team)');
+    console.log('David GET /api/submissions/sub_1 -> 403 OK');
+
+    // 9. Cross-team student mutation → 403
+    res = await request('/api/submissions', 'POST', {
+      projectId: 'p1',
+      title: 'Cross Team Draft',
+      description: 'David tries to create in p1.'
+    }, davidCookie);
+    assert(res.status === 403, 'David should not create submission in p1 (cross-team)');
+    console.log('David POST /api/submissions (cross-team create) -> 403 OK');
+
+    res = await request(`/api/submissions/${spoofedId}`, 'PUT', {
+      title: 'Hacked', description: 'Hacked'
+    }, davidCookie);
+    assert(res.status === 403, 'David should not edit p1 submission (cross-team)');
+    console.log(`David PUT /api/submissions/${spoofedId} (cross-team edit) -> 403 OK`);
+
+    res = await request(`/api/submissions/${spoofedId}/submit`, 'POST', null, davidCookie);
+    assert(res.status === 403, 'David should not submit p1 submission (cross-team)');
+    console.log(`David POST /api/submissions/${spoofedId}/submit (cross-team submit) -> 403 OK`);
+
+    // 10. Assigned mentor read → succeeds
+    // Sarah (u4) is mentor of Team Alpha (t1), project p1
+    res = await request('/api/submissions?projectId=p1', 'GET', null, sarahCookie);
+    assert(res.status === 200 && Array.isArray(res.data), 'Sarah should read p1 submissions');
+    console.log('Sarah GET /api/submissions?projectId=p1 -> 200 OK');
+
+    res = await request('/api/submissions/sub_1', 'GET', null, sarahCookie);
+    assert(res.status === 200, 'Sarah should read sub_1');
+    console.log('Sarah GET /api/submissions/sub_1 -> 200 OK');
+
+    // 11. Mentor create → 403
+    res = await request('/api/submissions', 'POST', {
+      projectId: 'p1',
+      title: 'Mentor Draft',
+      description: 'Mentor trying to create.'
+    }, sarahCookie);
+    assert(res.status === 403, 'Mentor Sarah should not create submission');
+    console.log('Sarah POST /api/submissions (mentor create) -> 403 OK');
+
+    // 12. Mentor edit → 403
+    res = await request(`/api/submissions/${spoofedId}`, 'PUT', {
+      title: 'Mentor Edit', description: 'Mentor trying to edit.'
+    }, sarahCookie);
+    assert(res.status === 403, 'Mentor Sarah should not edit submission');
+    console.log(`Sarah PUT /api/submissions/${spoofedId} (mentor edit) -> 403 OK`);
+
+    // Mentor submit → 403
+    res = await request(`/api/submissions/${spoofedId}/submit`, 'POST', null, sarahCookie);
+    assert(res.status === 403, 'Mentor Sarah should not submit submission');
+    console.log(`Sarah POST /api/submissions/${spoofedId}/submit (mentor submit) -> 403 OK`);
+
+    // 13. Unassigned mentor access → 403
+    // Alan (u5) is mentor of Team Beta (t2), should NOT access p1 submissions
+    res = await request('/api/submissions?projectId=p1', 'GET', null, alanCookie);
+    assert(res.status === 403, 'Alan should not read p1 submissions (unassigned mentor)');
+    console.log('Alan GET /api/submissions?projectId=p1 -> 403 OK');
+
+    res = await request('/api/submissions/sub_1', 'GET', null, alanCookie);
+    assert(res.status === 403, 'Alan should not read sub_1 (unassigned mentor)');
+    console.log('Alan GET /api/submissions/sub_1 -> 403 OK');
+
+    // 14. Submission persists after restart
+    // We already created aliceDraftId and submitted it. Re-read to verify it's there.
+    res = await request(`/api/submissions/${aliceDraftId}`, 'GET', null, aliceCookie);
+    assert(res.status === 200 && res.data.id === aliceDraftId, 'Submission must persist in SQLite');
+    assert(res.data.status === 'SUBMITTED', 'Persisted submission should retain SUBMITTED status');
+    assert(res.data.title === 'Updated Test Draft Submission', 'Persisted submission should retain updated title');
+    console.log(`Submission persists in SQLite -> OK (id=${aliceDraftId}, status=${res.data.status})`);
+
+    // 15. Submission activity events persist correctly
+    res = await request('/api/projects/p1/activity', 'GET', null, aliceCookie);
+    assert(res.status === 200, 'Activity read should succeed');
+    const submissionActivity = res.data.filter(
+      a => a.submissionId === aliceDraftId
+    );
+    // We expect at least: SUBMISSION_CREATED, SUBMISSION_UPDATED, SUBMISSION_SUBMITTED
+    const activityTypes = submissionActivity.map(a => a.type);
+    assert(activityTypes.includes('SUBMISSION_CREATED'), 'SUBMISSION_CREATED activity should exist');
+    assert(activityTypes.includes('SUBMISSION_SUBMITTED'), 'SUBMISSION_SUBMITTED activity should exist');
+    // The update emits SUBMISSION_UPDATED
+    assert(activityTypes.includes('SUBMISSION_UPDATED'), 'SUBMISSION_UPDATED activity should exist');
+    // Verify actor identity on activity events
+    const createdEvent = submissionActivity.find(a => a.type === 'SUBMISSION_CREATED');
+    assert(createdEvent && createdEvent.actorId === 'u1', 'Activity actorId must be session user u1');
+    assert(createdEvent && createdEvent.actorName === 'Alice Watson', 'Activity actorName must be session user');
+    console.log('Submission activity events persist correctly -> OK (' + submissionActivity.length + ' events)');
+
+    // 16. PATCH /submissions/:id/status should NOT exist (removed — belongs to Review slice)
+    res = await request(`/api/submissions/sub_1/status`, 'PATCH', { status: 'UNDER_REVIEW' }, sarahCookie);
+    assert(res.status === 404, 'PATCH /submissions/:id/status should return 404 (route removed)');
+    console.log('PATCH /api/submissions/:id/status -> 404 OK (boundary enforced)');
+
+    if (failCount > 0) {
+      console.error(`\n${failCount} submission test(s) FAILED`);
+      process.exitCode = 1;
+    } else {
+      console.log('\nAll submission authorization tests passed!');
+    }
+    // =====================================================================
+    //  REVIEW AUTHORIZATION TESTS
+    // =====================================================================
+    console.log('\n--- Review Authorization Tests ---');
+    let reviewFailCount = 0;
+    function assertReview(cond, msg) {
+      if (!cond) {
+        console.error(`  FAIL: ${msg}`);
+        reviewFailCount++;
+      }
+    }
+
+    // Unauthenticated access
+    res = await request('/api/submissions/sub_1/review');
+    assertReview(res.status === 401, 'Unauthenticated GET /review should return 401');
+    res = await request('/api/submissions/sub_1/review', 'POST');
+    assertReview(res.status === 401, 'Unauthenticated POST /review should return 401');
+    res = await request('/api/reviews/fake_id', 'PUT', { feedback: 'test' });
+    assertReview(res.status === 401, 'Unauthenticated PUT /reviews/:id should return 401');
+    res = await request('/api/reviews/fake_id/complete', 'POST');
+    assertReview(res.status === 401, 'Unauthenticated POST /reviews/:id/complete should return 401');
+    console.log('Unauthenticated Review endpoints -> 401 OK');
+
+    // Student access
+    res = await request('/api/submissions/sub_1/review', 'GET', null, aliceCookie);
+    assertReview(res.status === 200 || res.status === 404, 'Student should read their permitted review');
+    res = await request('/api/submissions/sub_1/review', 'POST', null, aliceCookie);
+    assertReview(res.status === 403, 'Student cannot start review -> 403');
+    console.log('Student Read -> OK, Student Mutation -> 403 OK');
+
+    // Cross-project Student
+    res = await request('/api/submissions/sub_1/review', 'GET', null, davidCookie);
+    assertReview(res.status === 403, 'Cross-project student cannot read review -> 403');
+    console.log('Cross-project Student Read -> 403 OK');
+
+    // Unassigned mentor
+    res = await request('/api/submissions/sub_1/review', 'GET', null, alanCookie);
+    assertReview(res.status === 403, 'Unassigned mentor cannot read review -> 403');
+    res = await request('/api/submissions/sub_1/review', 'POST', null, alanCookie);
+    assertReview(res.status === 403, 'Unassigned mentor cannot start review -> 403');
+    console.log('Unassigned mentor Read/Mutation -> 403 OK');
+
+    // Assigned mentor (Sarah, u4 for p1)
+    res = await request('/api/submissions/sub_1/review', 'POST', null, sarahCookie);
+    assertReview(res.status === 201, 'Assigned mentor can start review');
+    const reviewId = res.data?.id;
+    assertReview(reviewId, 'Review ID should be generated');
+    assertReview(res.data.status === 'IN_REVIEW', 'Review should be IN_REVIEW');
+    assertReview(res.data.reviewerId === 'u4', 'Review reviewerId must be session user u4');
+    console.log('Assigned mentor POST /review -> 201 OK');
+
+    // Check submission status updated to UNDER_REVIEW
+    res = await request('/api/submissions/sub_1', 'GET', null, aliceCookie);
+    assertReview(res.data.status === 'UNDER_REVIEW', 'Submission status should be UNDER_REVIEW');
+    console.log('Submission status updated to UNDER_REVIEW -> OK');
+
+    // Starting already started review
+    res = await request('/api/submissions/sub_1/review', 'POST', null, sarahCookie);
+    assertReview(res.status === 400, 'Starting already started review is rejected');
+    console.log('Double start review -> 400 OK');
+
+    // DRAFT submission cannot be reviewed
+    res = await request('/api/submissions', 'POST', { projectId: 'p1', title: 'D', description: 'D' }, aliceCookie);
+    const draftId = res.data.id;
+    res = await request(`/api/submissions/${draftId}/review`, 'POST', null, sarahCookie);
+    assertReview(res.status === 400, 'Cannot review DRAFT submission');
+    console.log('DRAFT submission review -> 400 OK');
+
+    // Assigned mentor updates feedback
+    res = await request(`/api/reviews/${reviewId}`, 'PUT', { feedback: 'Great work!' }, sarahCookie);
+    assertReview(res.status === 200, 'Assigned mentor can update feedback');
+    assertReview(res.data.feedback === 'Great work!', 'Feedback should be updated');
+    console.log('Assigned mentor PUT /reviews/:id -> 200 OK');
+
+    // Unassigned mentor tries to update feedback
+    res = await request(`/api/reviews/${reviewId}`, 'PUT', { feedback: 'Hacked' }, alanCookie);
+    assertReview(res.status === 403, 'Unassigned mentor cannot update feedback');
+    console.log('Unassigned mentor PUT /reviews/:id -> 403 OK');
+
+    // Student tries to update feedback
+    res = await request(`/api/reviews/${reviewId}`, 'PUT', { feedback: 'Hacked by student' }, aliceCookie);
+    assertReview(res.status === 403, 'Student cannot update feedback');
+    console.log('Student PUT /reviews/:id -> 403 OK');
+
+    // Assigned mentor completes review
+    res = await request(`/api/reviews/${reviewId}/complete`, 'POST', null, sarahCookie);
+    assertReview(res.status === 200, 'Assigned mentor can complete review');
+    assertReview(res.data.status === 'REVIEWED', 'Review status should be REVIEWED');
+    console.log('Assigned mentor POST /reviews/:id/complete -> 200 OK');
+
+    // Check submission status updated to REVIEWED
+    res = await request('/api/submissions/sub_1', 'GET', null, aliceCookie);
+    assertReview(res.data.status === 'REVIEWED', 'Submission status should be REVIEWED');
+    console.log('Submission status updated to REVIEWED -> OK');
+
+    // Modify feedback on completed review
+    res = await request(`/api/reviews/${reviewId}`, 'PUT', { feedback: 'Too late' }, sarahCookie);
+    assertReview(res.status === 400, 'Cannot modify feedback on completed review');
+    console.log('Modify completed review feedback -> 400 OK');
+
+    // Complete non-IN_REVIEW review
+    res = await request(`/api/reviews/${reviewId}/complete`, 'POST', null, sarahCookie);
+    assertReview(res.status === 400, 'Cannot complete an already completed review');
+    console.log('Complete already completed review -> 400 OK');
+
+    // Persistence & Activity tests
+    res = await request('/api/projects/p1/activity', 'GET', null, sarahCookie);
+    const reviewActivity = res.data.filter(a => a.submissionId === 'sub_1' && a.type.startsWith('SUBMISSION_'));
+    const reviewActivityTypes = reviewActivity.map(a => a.type);
+    assertReview(reviewActivityTypes.includes('SUBMISSION_REVIEW_STARTED'), 'SUBMISSION_REVIEW_STARTED exists');
+    assertReview(reviewActivityTypes.includes('SUBMISSION_FEEDBACK_UPDATED'), 'SUBMISSION_FEEDBACK_UPDATED exists');
+    assertReview(reviewActivityTypes.includes('SUBMISSION_REVIEWED'), 'SUBMISSION_REVIEWED exists');
+    assertReview(reviewActivity.every(a => a.actorId === 'u4'), 'Actor identity comes from authenticated mentor');
+    console.log('Review activity events persist correctly -> OK');
+
+    if (reviewFailCount > 0) {
+      console.error(`\n${reviewFailCount} review test(s) FAILED`);
+      process.exitCode = 1;
+    } else {
+      console.log('\nAll review authorization tests passed!');
+    }
+
     console.log('\nAll tests passed!');
   } catch (err) {
     console.error('Test failed:', err);

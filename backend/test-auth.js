@@ -298,6 +298,47 @@ server.listen(PORT, async () => {
     console.assert(res.status === 403, 'David cannot manufacture activity event in p1');
     console.log('David POST /api/projects/p1/activity (cross-project manufacturing) -> 403 OK');
 
+    console.log('\n--- Progress Authorization & Calculation Tests ---');
+    // 1. Unauthenticated progress read -> 401
+    res = await request('/api/projects/p1/progress', 'GET');
+    console.assert(res.status === 401, 'Unauthenticated GET /api/projects/p1/progress should return 401');
+    console.log('Unauthenticated GET /api/projects/p1/progress -> 401 OK');
+
+    // 2. Authorized student Alice progress read -> 200
+    res = await request('/api/projects/p1/progress', 'GET', null, aliceCookie);
+    console.assert(res.status === 200 && res.data.overall && Array.isArray(res.data.modules) && Array.isArray(res.data.members), 'Alice should get p1 progress snapshot');
+    const initialCompleted = res.data.overall.completedTasks;
+    console.log('Alice GET /api/projects/p1/progress -> 200 OK');
+
+    // 3. Unauthorized student David progress read -> 403
+    res = await request('/api/projects/p1/progress', 'GET', null, davidCookie);
+    console.assert(res.status === 403, 'David should not read p1 progress');
+    console.log('David GET /api/projects/p1/progress -> 403 OK');
+
+    // 4. Assigned mentor Sarah progress read -> 200
+    res = await request('/api/projects/p1/progress', 'GET', null, sarahCookie);
+    console.assert(res.status === 200, 'Sarah should read p1 progress');
+    console.log('Sarah GET /api/projects/p1/progress -> 200 OK');
+
+    // 5. Unassigned mentor Alan progress read -> 403
+    res = await request('/api/projects/p1/progress', 'GET', null, alanCookie);
+    console.assert(res.status === 403, 'Alan should not read p1 progress');
+    console.log('Alan GET /api/projects/p1/progress -> 403 OK');
+
+    // 6. Zero-task project -> 0% completion
+    res = await request('/api/projects', 'POST', { name: 'Zero Task Proj', description: 'Empty', teamId: 't1' }, aliceCookie);
+    const zeroTaskId = res.data.id;
+    res = await request(`/api/projects/${zeroTaskId}/progress`, 'GET', null, aliceCookie);
+    console.assert(res.status === 200 && res.data.overall.totalTasks === 0 && res.data.overall.completionPercentage === 0, 'Zero task project must return 0%');
+    console.log('Alice GET zero-task project progress -> 200 OK (0% completion)');
+
+    // 7. Dynamic recalculation on task status update
+    // Update t_1 status to COMPLETED
+    await request('/api/tasks/t_1', 'PUT', { status: 'COMPLETED' }, aliceCookie);
+    res = await request('/api/projects/p1/progress', 'GET', null, aliceCookie);
+    console.assert(res.status === 200 && res.data.overall.completedTasks === initialCompleted + 1, 'Completed task count must update dynamically');
+    console.log('Dynamic progress recalculation on task completion -> 200 OK');
+
     console.log('\nAll tests passed!');
   } catch (err) {
     console.error('Test failed:', err);

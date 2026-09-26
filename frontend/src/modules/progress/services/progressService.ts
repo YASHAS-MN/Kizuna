@@ -6,6 +6,7 @@ import type {
   MemberProgress,
   ProgressSnapshot
 } from '../types/progress.types'
+import { fetchProjectProgressApi } from '../../../services/api/progress'
 
 type Listener = () => void
 const listeners: Set<Listener> = new Set()
@@ -23,7 +24,7 @@ taskService.subscribe(() => {
 
 /**
  * Pure derivation function: computes a ProgressSnapshot from an array of tasks.
- * Does not store state or mutate tasks.
+ * Maintained for local computations and utility purposes.
  */
 export function deriveProgressSnapshot(tasks: Task[]): ProgressSnapshot {
   const totalTasks = tasks.length
@@ -75,7 +76,6 @@ export function deriveProgressSnapshot(tasks: Task[]): ProgressSnapshot {
       if (isCompleted) {
         currentMember.completed++
       }
-      // Update name in case it was resolved later
       if (task.assigneeName) {
         currentMember.memberName = task.assigneeName
       }
@@ -118,8 +118,8 @@ export function deriveProgressSnapshot(tasks: Task[]): ProgressSnapshot {
 }
 
 /**
- * Replaceable Service Boundary for Progress Tracking.
- * Progress is a derived read model — all data is derived from taskService.
+ * Service Boundary for Progress Tracking.
+ * Fetches calculated progress metrics from the backend API.
  */
 export const progressService = {
   /**
@@ -133,10 +133,12 @@ export const progressService = {
   },
 
   /**
-   * Calculates and returns a progress snapshot for a project based on task state.
+   * Returns a progress snapshot for a project fetched from the backend API.
    */
   async getProjectProgress(projectId: string): Promise<ProgressSnapshot> {
-    const tasks = await taskService.getTasksForProject(projectId)
-    return deriveProgressSnapshot(tasks)
+    if (!projectId || !projectId.trim()) {
+      throw new Error('A valid project ID is required to load progress.')
+    }
+    return fetchProjectProgressApi(projectId)
   }
 }
